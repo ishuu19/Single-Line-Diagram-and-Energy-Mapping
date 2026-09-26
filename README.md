@@ -35,7 +35,7 @@ Download the dataset and place these three folders next to this README:
 - `Synthetic Data/` — generated development corpus: drawings, ground-truth graphs, telemetry, and the generator in `_tools/`.
 - `component-symbols/` — isolated symbol crops for detector training.
 
-**Drive link:** _to be added._
+**Drive link (not public / restricted access):** [Google Drive Folder](https://drive.google.com/drive/u/0/folders/17XAxWSsxzFjKNgzNvG0TxIpgp3elHyfv)
 
 Each synthetic plant looks like this:
 
