@@ -1,0 +1,12 @@
+---
+description: How to regenerate plants without scanning the corpus
+globs: Synthetic Data/_tools/**/*.mjs
+alwaysApply: false
+---
+
+# Generator
+
+- Edit specs in `plants.mjs` or `plants.generated.mjs`. Rendering is `build.mjs` → Schematex.
+- Measurement edges are dashed after render (`dashMeasurementLinks` in `generate.mjs`). Bare crossings are not edges.
+- Do not open generated `GEN-*` or `PLANT-*` trees to check a change. Run `node verify.mjs` on the tier you touched.
+- Isolated crops are `components.mjs`, written to `component-symbols/`, not into plant folders.

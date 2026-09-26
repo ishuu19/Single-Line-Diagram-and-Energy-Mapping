@@ -1,0 +1,44 @@
+sld "GEN-0725 — TELECOM SITE / ELECTRICAL DISTRIBUTION"
+# SHELTER POWER SINGLE-LINE DIAGRAM
+# 400Y/230V, 3PH, 4W, 50 Hz
+
+busA = bus [label: "BUS-413", voltage: "400Y/230V"]
+srcA1 = utility [label: "20kV SUPPLY A", voltage: "20kV"]
+txA1 = transformer_yd [label: "TX-1616", rating: "280 kVA", voltage: "20kV / 400Y/230V"]
+mcbA1 = breaker [label: "CB-347", rating: "ACB / 400 A / 3P"]
+mctA1 = ct [label: "TA-786", rating: "3 CTs / 400/5 A"]
+mpmA1 = watthour_meter [label: "PM-1040", rating: "kW / kWh"]
+busB = bus [label: "BUS-449", voltage: "400Y/230V"]
+srcB1 = generator [label: "STANDBY GENERATOR", voltage: "400Y/230V", rating: "150 kW"]
+mcbB1 = breaker [label: "CB-311", rating: "MCCB / 250 A / 3P"]
+mctB1 = ct [label: "TA-738", rating: "3 CTs / 250/5 A"]
+mpmB1 = watthour_meter [label: "PM-1098", rating: "kW / kWh"]
+tie = ats [label: "CB-380", rating: "1600 A / 3P / AUTOMATIC TRANSFER / OPEN TRANSITION"]
+f1cb = breaker [label: "CB-305", rating: "MCCB / 160 A / 3P"]
+f1ct = ct [label: "TA-774", rating: "3 CTs / 160/5 A"]
+f1pm = watthour_meter [label: "PM-1062", rating: "kW / kWh"]
+f1l1ld = load [label: "PNL-1426", rating: "SHELTER LIGHTING / 11 kW"]
+f2cb = breaker [label: "CB-381", rating: "MCCB / 160 A / 3P"]
+f2ct = ct [label: "TA-770", rating: "3 CTs / 160/5 A"]
+f2pm = watthour_meter [label: "PM-1067", rating: "kW / kWh"]
+f2l1ld = load [label: "PNL-1448", rating: "RECTIFIER PDU / 28 kW"]
+
+srcA1 -> txA1
+txA1 -> mcbA1
+mcbA1 -> mctA1
+mctA1 -> busA
+srcB1 -> mcbB1
+mcbB1 -> mctB1
+mctB1 -> busB
+busA -> tie
+tie -> busB
+busA -> f1cb [cable: "3#1/0 AWG"]
+f1cb -> f1ct
+f1ct -> f1l1ld
+busB -> f2cb [cable: "3#1/0 AWG"]
+f2cb -> f2ct
+f2ct -> f2l1ld
+mctA1 -> mpmA1
+mctB1 -> mpmB1
+f1ct -> f1pm
+f2ct -> f2pm

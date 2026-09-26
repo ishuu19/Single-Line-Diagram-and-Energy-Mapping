@@ -1,0 +1,1369 @@
+{
+  "diagram_id": "GEN-1282",
+  "name": "Food Processing Plant — Site South-31",
+  "title": "FOOD PROCESSING FACILITY / ELECTRICAL DISTRIBUTION",
+  "subtitle": "PROCESS SINGLE-LINE DIAGRAM",
+  "standard": "IEEE Std 315 (ANSI Y32.2)",
+  "system": {
+    "mv": "11kV",
+    "lv": "400Y/230V",
+    "ll_voltage_v": 400,
+    "frequency_hz": 50,
+    "tz_offset": "+01:00"
+  },
+  "image": {
+    "svg": "plant.svg",
+    "png": "plant.png",
+    "width": 482.97,
+    "height": 1173,
+    "png_scale": 2,
+    "note": "bbox coordinates are in SVG user units; multiply by png_scale for PNG pixels"
+  },
+  "counts": {
+    "nodes": 15,
+    "edges": 14,
+    "power_edges": 12,
+    "measurement_edges": 2,
+    "meters": 2,
+    "junctions": 10
+  },
+  "nodes": [
+    {
+      "id": "BUS-492",
+      "dsl_id": "busA",
+      "type": "bus",
+      "class": "bus",
+      "role": "bus",
+      "label": "BUS-492",
+      "attributes": {
+        "voltage": "400Y/230V"
+      },
+      "metadata": {
+        "configuration": "3P+N",
+        "section": "A"
+      },
+      "bbox": [
+        143.86,
+        416,
+        183.86,
+        456
+      ],
+      "center": [
+        163.86,
+        436
+      ],
+      "level": 4,
+      "text_labels": [
+        {
+          "text": "BUS-492",
+          "role": "id",
+          "bbox": [
+            36,
+            422,
+            88.47,
+            436
+          ],
+          "font_size": 11,
+          "placement": "side"
+        },
+        {
+          "text": "400Y/230V",
+          "role": "id",
+          "bbox": [
+            36,
+            436,
+            103.86,
+            450
+          ],
+          "font_size": 11,
+          "placement": "side"
+        }
+      ]
+    },
+    {
+      "id": "11kV SUPPLY A",
+      "dsl_id": "srcA1",
+      "type": "utility",
+      "class": "source",
+      "role": "source",
+      "label": "11kV SUPPLY A",
+      "attributes": {
+        "voltage": "11kV"
+      },
+      "metadata": {
+        "source_type": "utility",
+        "bus_section": "A"
+      },
+      "bbox": [
+        238.74,
+        32,
+        274.74,
+        74
+      ],
+      "center": [
+        256.74,
+        56
+      ],
+      "level": 0,
+      "text_labels": [
+        {
+          "text": "11kV SUPPLY A",
+          "role": "id",
+          "bbox": [
+            288.74,
+            42,
+            379.45,
+            56
+          ],
+          "font_size": 11,
+          "placement": "side"
+        },
+        {
+          "text": "11kV",
+          "role": "rating",
+          "bbox": [
+            288.74,
+            58,
+            311.42,
+            70
+          ],
+          "font_size": 9,
+          "placement": "side"
+        }
+      ]
+    },
+    {
+      "id": "TX-1660",
+      "dsl_id": "txA1",
+      "type": "transformer_yd",
+      "class": "transformer",
+      "role": "transformer",
+      "label": "TX-1660",
+      "attributes": {
+        "rating": "280 kVA",
+        "voltage": "11kV / 400Y/230V"
+      },
+      "metadata": {
+        "kva": 280,
+        "winding": "yd",
+        "impedance": "5.33%Z"
+      },
+      "bbox": [
+        234.74,
+        124,
+        278.74,
+        172
+      ],
+      "center": [
+        256.74,
+        148
+      ],
+      "level": 1,
+      "text_labels": [
+        {
+          "text": "TX-1660",
+          "role": "id",
+          "bbox": [
+            292.74,
+            134,
+            345.21,
+            148
+          ],
+          "font_size": 11,
+          "placement": "side"
+        },
+        {
+          "text": "280 kVA",
+          "role": "rating",
+          "bbox": [
+            292.74,
+            150,
+            330.18,
+            162
+          ],
+          "font_size": 9,
+          "placement": "side"
+        },
+        {
+          "text": "11kV / 400Y/230V",
+          "role": "rating",
+          "bbox": [
+            292.74,
+            162,
+            378.42,
+            174
+          ],
+          "font_size": 9,
+          "placement": "side"
+        }
+      ]
+    },
+    {
+      "id": "CB-356",
+      "dsl_id": "mcbA1",
+      "type": "breaker",
+      "class": "breaker",
+      "role": "main_breaker",
+      "label": "CB-356",
+      "attributes": {
+        "rating": "ACB / 400 A / 3P"
+      },
+      "metadata": {
+        "ampacity": "400 A",
+        "ansi_device": "52",
+        "bus_section": "A"
+      },
+      "bbox": [
+        238.74,
+        234,
+        274.74,
+        270
+      ],
+      "center": [
+        256.74,
+        252
+      ],
+      "level": 2,
+      "text_labels": [
+        {
+          "text": "CB-356",
+          "role": "id",
+          "bbox": [
+            288.74,
+            238,
+            333.51,
+            252
+          ],
+          "font_size": 11,
+          "placement": "side"
+        },
+        {
+          "text": "ACB / 400 A / 3P",
+          "role": "rating",
+          "bbox": [
+            288.74,
+            254,
+            366.32,
+            266
+          ],
+          "font_size": 9,
+          "placement": "side"
+        }
+      ]
+    },
+    {
+      "id": "TA-733",
+      "dsl_id": "mctA1",
+      "type": "ct",
+      "class": "ct",
+      "role": "ct",
+      "label": "TA-733",
+      "attributes": {
+        "rating": "3 CTs / 400/5 A"
+      },
+      "metadata": {
+        "ratio": "400/5 A",
+        "phases": 3
+      },
+      "bbox": [
+        246.74,
+        328,
+        266.74,
+        360
+      ],
+      "center": [
+        256.74,
+        344
+      ],
+      "level": 3,
+      "text_labels": [
+        {
+          "text": "TA-733",
+          "role": "id",
+          "bbox": [
+            280.74,
+            330,
+            325.51,
+            344
+          ],
+          "font_size": 11,
+          "placement": "side"
+        },
+        {
+          "text": "3 CTs / 400/5 A",
+          "role": "rating",
+          "bbox": [
+            280.74,
+            346,
+            354.36,
+            358
+          ],
+          "font_size": 9,
+          "placement": "side"
+        }
+      ]
+    },
+    {
+      "id": "PM-1044",
+      "dsl_id": "mpmA1",
+      "type": "watthour_meter",
+      "class": "meter",
+      "role": "meter",
+      "label": "PM-1044",
+      "attributes": {
+        "rating": "kW / kWh"
+      },
+      "metadata": {
+        "channel": "REMOTE / I01",
+        "measures": "section incomer",
+        "bus_section": "A"
+      },
+      "bbox": [
+        360.97,
+        422,
+        388.97,
+        450
+      ],
+      "center": [
+        374.97,
+        436
+      ],
+      "level": 4,
+      "text_labels": [
+        {
+          "text": "PM-1044",
+          "role": "id",
+          "bbox": [
+            348.74,
+            455,
+            401.21,
+            469
+          ],
+          "font_size": 11,
+          "placement": "side"
+        },
+        {
+          "text": "kW / kWh",
+          "role": "rating",
+          "bbox": [
+            356.43,
+            471,
+            393.51,
+            483
+          ],
+          "font_size": 9,
+          "placement": "side"
+        }
+      ]
+    },
+    {
+      "id": "CB-329",
+      "dsl_id": "f1cb",
+      "type": "breaker",
+      "class": "breaker",
+      "role": "feeder_breaker",
+      "label": "CB-329",
+      "attributes": {
+        "rating": "MCCB / 160 A / 3P"
+      },
+      "metadata": {
+        "ampacity": "160 A",
+        "ansi_device": "52",
+        "bus_section": "A"
+      },
+      "bbox": [
+        145.86,
+        546,
+        181.86,
+        582
+      ],
+      "center": [
+        163.86,
+        564
+      ],
+      "level": 5,
+      "text_labels": [
+        {
+          "text": "CB-329",
+          "role": "id",
+          "bbox": [
+            195.86,
+            550,
+            240.64,
+            564
+          ],
+          "font_size": 11,
+          "placement": "side"
+        },
+        {
+          "text": "MCCB / 160 A / 3P",
+          "role": "rating",
+          "bbox": [
+            195.86,
+            566,
+            279.38,
+            578
+          ],
+          "font_size": 9,
+          "placement": "side"
+        }
+      ]
+    },
+    {
+      "id": "TA-796",
+      "dsl_id": "f1ct",
+      "type": "ct",
+      "class": "ct",
+      "role": "ct",
+      "label": "TA-796",
+      "attributes": {
+        "rating": "3 CTs / 160/5 A"
+      },
+      "metadata": {
+        "ratio": "160/5 A",
+        "phases": 3
+      },
+      "bbox": [
+        153.86,
+        640,
+        173.86,
+        672
+      ],
+      "center": [
+        163.86,
+        656
+      ],
+      "level": 6,
+      "text_labels": [
+        {
+          "text": "TA-796",
+          "role": "id",
+          "bbox": [
+            187.86,
+            642,
+            232.64,
+            656
+          ],
+          "font_size": 11,
+          "placement": "side"
+        },
+        {
+          "text": "3 CTs / 160/5 A",
+          "role": "rating",
+          "bbox": [
+            187.86,
+            658,
+            261.48,
+            670
+          ],
+          "font_size": 9,
+          "placement": "side"
+        }
+      ]
+    },
+    {
+      "id": "PM-1035",
+      "dsl_id": "f1pm",
+      "type": "watthour_meter",
+      "class": "meter",
+      "role": "meter",
+      "label": "PM-1035",
+      "attributes": {
+        "rating": "kW / kWh"
+      },
+      "metadata": {
+        "channel": "REMOTE / I02",
+        "bus_section": "A"
+      },
+      "bbox": [
+        61.67,
+        734,
+        89.67,
+        762
+      ],
+      "center": [
+        75.67,
+        748
+      ],
+      "level": 7,
+      "text_labels": [
+        {
+          "text": "PM-1035",
+          "role": "id",
+          "bbox": [
+            49.44,
+            767,
+            101.91,
+            781
+          ],
+          "font_size": 11,
+          "placement": "side"
+        },
+        {
+          "text": "kW / kWh",
+          "role": "rating",
+          "bbox": [
+            57.13,
+            783,
+            94.21,
+            795
+          ],
+          "font_size": 9,
+          "placement": "side"
+        }
+      ]
+    },
+    {
+      "id": "FD-924",
+      "dsl_id": "f1pnl",
+      "type": "hub",
+      "class": "panel",
+      "role": "panel",
+      "label": "FD-924",
+      "attributes": {
+        "rating": "3P+N"
+      },
+      "metadata": {
+        "description": "FEEDER DISTRIBUTION BOARD",
+        "bus_section": "A"
+      },
+      "bbox": [
+        200.05,
+        728,
+        304.05,
+        768
+      ],
+      "center": [
+        252.05,
+        748
+      ],
+      "level": 7,
+      "text_labels": [
+        {
+          "text": "FD-924",
+          "role": "id",
+          "bbox": [
+            200.05,
+            741,
+            304.05,
+            753
+          ],
+          "font_size": 11,
+          "placement": "inside"
+        },
+        {
+          "text": "3P+N",
+          "role": "rating",
+          "bbox": [
+            318.05,
+            736,
+            341.81,
+            748
+          ],
+          "font_size": 9,
+          "placement": "side"
+        }
+      ]
+    },
+    {
+      "id": "CB-384",
+      "dsl_id": "f1l1cb",
+      "type": "breaker",
+      "class": "breaker",
+      "role": "branch_breaker",
+      "label": "CB-384",
+      "attributes": {
+        "rating": "MCCB / 160 A / 3P"
+      },
+      "metadata": {},
+      "bbox": [
+        61.52,
+        852,
+        97.52,
+        888
+      ],
+      "center": [
+        79.52,
+        870
+      ],
+      "level": 8,
+      "text_labels": [
+        {
+          "text": "CB-384",
+          "role": "id",
+          "bbox": [
+            111.52,
+            856,
+            156.29,
+            870
+          ],
+          "font_size": 11,
+          "placement": "side"
+        },
+        {
+          "text": "MCCB / 160 A / 3P",
+          "role": "rating",
+          "bbox": [
+            111.52,
+            872,
+            195.04,
+            884
+          ],
+          "font_size": 9,
+          "placement": "side"
+        }
+      ]
+    },
+    {
+      "id": "DRV-882",
+      "dsl_id": "f1l1drv",
+      "type": "vfd",
+      "class": "vfd",
+      "role": "drive",
+      "label": "DRV-882",
+      "attributes": {
+        "rating": "VFD / OL"
+      },
+      "metadata": {
+        "duty": "3~",
+        "drives": "MTR-1164"
+      },
+      "bbox": [
+        55.52,
+        974,
+        103.52,
+        1010
+      ],
+      "center": [
+        79.52,
+        992
+      ],
+      "level": 9,
+      "text_labels": [
+        {
+          "text": "DRV-882",
+          "role": "id",
+          "bbox": [
+            117.52,
+            978,
+            169.99,
+            992
+          ],
+          "font_size": 11,
+          "placement": "side"
+        },
+        {
+          "text": "VFD / OL",
+          "role": "rating",
+          "bbox": [
+            117.52,
+            994,
+            157.84,
+            1006
+          ],
+          "font_size": 9,
+          "placement": "side"
+        }
+      ]
+    },
+    {
+      "id": "MTR-1164",
+      "dsl_id": "f1l1m",
+      "type": "motor",
+      "class": "motor",
+      "role": "motor",
+      "label": "MTR-1164",
+      "attributes": {
+        "rating": "70 kW / PROC"
+      },
+      "metadata": {
+        "power_kw": 70,
+        "application": "PROC",
+        "service": "PROCESS DRIVE",
+        "started_by": "DRV-882",
+        "bus_section": "A"
+      },
+      "bbox": [
+        63.52,
+        1068,
+        95.52,
+        1106
+      ],
+      "center": [
+        79.52,
+        1084
+      ],
+      "level": 10,
+      "text_labels": [
+        {
+          "text": "MTR-1164",
+          "role": "id",
+          "bbox": [
+            49.44,
+            1111,
+            109.6,
+            1125
+          ],
+          "font_size": 11,
+          "placement": "side"
+        },
+        {
+          "text": "70 kW / PROC",
+          "role": "rating",
+          "bbox": [
+            49.55,
+            1127,
+            109.49,
+            1139
+          ],
+          "font_size": 9,
+          "placement": "side"
+        }
+      ]
+    },
+    {
+      "id": "PNL-1448",
+      "dsl_id": "f1l2ld",
+      "type": "load",
+      "class": "load",
+      "role": "load",
+      "label": "PNL-1448",
+      "attributes": {
+        "rating": "PACKAGING PANEL / 13 kW"
+      },
+      "metadata": {
+        "power_kw": 13,
+        "description": "PACKAGING PANEL",
+        "application": "PNL",
+        "bus_section": "A"
+      },
+      "bbox": [
+        278.62,
+        858,
+        318.62,
+        882
+      ],
+      "center": [
+        298.62,
+        870
+      ],
+      "level": 8,
+      "text_labels": [
+        {
+          "text": "PNL-1448",
+          "role": "id",
+          "bbox": [
+            268.54,
+            887,
+            328.7,
+            901
+          ],
+          "font_size": 11,
+          "placement": "side"
+        },
+        {
+          "text": "PACKAGING PANEL / 13 kW",
+          "role": "rating",
+          "bbox": [
+            239.04,
+            903,
+            358.2,
+            915
+          ],
+          "font_size": 9,
+          "placement": "side"
+        }
+      ]
+    },
+    {
+      "id": "HF-553",
+      "dsl_id": "f1x",
+      "type": "harmonic_filter",
+      "class": "load",
+      "role": "compensation",
+      "label": "HF-553",
+      "attributes": {
+        "rating": "5th / 7th"
+      },
+      "metadata": {},
+      "bbox": [
+        404.59,
+        856,
+        444.59,
+        884
+      ],
+      "center": [
+        424.59,
+        870
+      ],
+      "level": 8,
+      "text_labels": [
+        {
+          "text": "HF-553",
+          "role": "id",
+          "bbox": [
+            402.2,
+            889,
+            446.97,
+            903
+          ],
+          "font_size": 11,
+          "placement": "side"
+        },
+        {
+          "text": "5th / 7th",
+          "role": "rating",
+          "bbox": [
+            405.6,
+            905,
+            443.58,
+            917
+          ],
+          "font_size": 9,
+          "placement": "side"
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "id": "E001",
+      "source": "11kV SUPPLY A",
+      "target": "TX-1660",
+      "source_dsl_id": "srcA1",
+      "target_dsl_id": "txA1",
+      "relationship": "power",
+      "line_style": "solid",
+      "attributes": {},
+      "net": "0",
+      "polyline": [
+        [
+          256.74,
+          74
+        ],
+        [
+          256.74,
+          124
+        ]
+      ]
+    },
+    {
+      "id": "E002",
+      "source": "TX-1660",
+      "target": "CB-356",
+      "source_dsl_id": "txA1",
+      "target_dsl_id": "mcbA1",
+      "relationship": "power",
+      "line_style": "solid",
+      "attributes": {},
+      "net": "1",
+      "polyline": [
+        [
+          256.74,
+          172
+        ],
+        [
+          256.74,
+          234
+        ]
+      ]
+    },
+    {
+      "id": "E003",
+      "source": "CB-356",
+      "target": "TA-733",
+      "source_dsl_id": "mcbA1",
+      "target_dsl_id": "mctA1",
+      "relationship": "power",
+      "line_style": "solid",
+      "attributes": {},
+      "net": "2",
+      "polyline": [
+        [
+          256.74,
+          270
+        ],
+        [
+          256.74,
+          328
+        ]
+      ]
+    },
+    {
+      "id": "E004",
+      "source": "TA-733",
+      "target": "BUS-492",
+      "source_dsl_id": "mctA1",
+      "target_dsl_id": "busA",
+      "relationship": "power",
+      "line_style": "solid",
+      "attributes": {},
+      "net": "3",
+      "polyline": [
+        [
+          256.74,
+          360
+        ],
+        [
+          256.74,
+          436
+        ]
+      ]
+    },
+    {
+      "id": "E005",
+      "source": "TA-733",
+      "target": "PM-1044",
+      "source_dsl_id": "mctA1",
+      "target_dsl_id": "mpmA1",
+      "relationship": "measurement",
+      "line_style": "dashed",
+      "attributes": {
+        "note": "CT secondary"
+      },
+      "net": "3",
+      "polyline": [
+        [
+          256.74,
+          360
+        ],
+        [
+          256.74,
+          410
+        ],
+        [
+          374.97,
+          410
+        ],
+        [
+          374.97,
+          422
+        ]
+      ]
+    },
+    {
+      "id": "E006",
+      "source": "BUS-492",
+      "target": "CB-329",
+      "source_dsl_id": "busA",
+      "target_dsl_id": "f1cb",
+      "relationship": "power",
+      "line_style": "solid",
+      "attributes": {
+        "cable": "3#1/0 AWG"
+      },
+      "net": "3",
+      "polyline": [
+        [
+          163.86,
+          436
+        ],
+        [
+          163.86,
+          546
+        ]
+      ]
+    },
+    {
+      "id": "E007",
+      "source": "CB-329",
+      "target": "TA-796",
+      "source_dsl_id": "f1cb",
+      "target_dsl_id": "f1ct",
+      "relationship": "power",
+      "line_style": "solid",
+      "attributes": {},
+      "net": "5",
+      "polyline": [
+        [
+          163.86,
+          582
+        ],
+        [
+          163.86,
+          640
+        ]
+      ]
+    },
+    {
+      "id": "E008",
+      "source": "TA-796",
+      "target": "PM-1035",
+      "source_dsl_id": "f1ct",
+      "target_dsl_id": "f1pm",
+      "relationship": "measurement",
+      "line_style": "dashed",
+      "attributes": {
+        "note": "CT secondary"
+      },
+      "net": "6",
+      "polyline": [
+        [
+          163.86,
+          672
+        ],
+        [
+          163.86,
+          684
+        ],
+        [
+          75.67,
+          684
+        ],
+        [
+          75.67,
+          734
+        ]
+      ]
+    },
+    {
+      "id": "E009",
+      "source": "TA-796",
+      "target": "FD-924",
+      "source_dsl_id": "f1ct",
+      "target_dsl_id": "f1pnl",
+      "relationship": "power",
+      "line_style": "solid",
+      "attributes": {},
+      "net": "6",
+      "polyline": [
+        [
+          163.86,
+          672
+        ],
+        [
+          163.86,
+          684
+        ],
+        [
+          252.05,
+          684
+        ],
+        [
+          252.05,
+          728
+        ]
+      ]
+    },
+    {
+      "id": "E010",
+      "source": "FD-924",
+      "target": "CB-384",
+      "source_dsl_id": "f1pnl",
+      "target_dsl_id": "f1l1cb",
+      "relationship": "power",
+      "line_style": "solid",
+      "attributes": {},
+      "net": "7",
+      "polyline": [
+        [
+          252.05,
+          768
+        ],
+        [
+          252.05,
+          840
+        ],
+        [
+          79.52,
+          840
+        ],
+        [
+          79.52,
+          852
+        ]
+      ]
+    },
+    {
+      "id": "E011",
+      "source": "CB-384",
+      "target": "DRV-882",
+      "source_dsl_id": "f1l1cb",
+      "target_dsl_id": "f1l1drv",
+      "relationship": "power",
+      "line_style": "solid",
+      "attributes": {},
+      "net": "8",
+      "polyline": [
+        [
+          79.52,
+          888
+        ],
+        [
+          79.52,
+          974
+        ]
+      ]
+    },
+    {
+      "id": "E012",
+      "source": "DRV-882",
+      "target": "MTR-1164",
+      "source_dsl_id": "f1l1drv",
+      "target_dsl_id": "f1l1m",
+      "relationship": "power",
+      "line_style": "solid",
+      "attributes": {},
+      "net": "9",
+      "polyline": [
+        [
+          79.52,
+          1010
+        ],
+        [
+          79.52,
+          1068
+        ]
+      ]
+    },
+    {
+      "id": "E013",
+      "source": "FD-924",
+      "target": "PNL-1448",
+      "source_dsl_id": "f1pnl",
+      "target_dsl_id": "f1l2ld",
+      "relationship": "power",
+      "line_style": "solid",
+      "attributes": {},
+      "net": "7",
+      "polyline": [
+        [
+          252.05,
+          768
+        ],
+        [
+          252.05,
+          846
+        ],
+        [
+          298.62,
+          846
+        ],
+        [
+          298.62,
+          858
+        ]
+      ]
+    },
+    {
+      "id": "E014",
+      "source": "FD-924",
+      "target": "HF-553",
+      "source_dsl_id": "f1pnl",
+      "target_dsl_id": "f1x",
+      "relationship": "power",
+      "line_style": "solid",
+      "attributes": {},
+      "net": "7",
+      "polyline": [
+        [
+          252.05,
+          768
+        ],
+        [
+          252.05,
+          844
+        ],
+        [
+          424.59,
+          844
+        ],
+        [
+          424.59,
+          856
+        ]
+      ]
+    }
+  ],
+  "nets": {
+    "0": [
+      "E001"
+    ],
+    "1": [
+      "E002"
+    ],
+    "2": [
+      "E003"
+    ],
+    "3": [
+      "E004",
+      "E005",
+      "E006"
+    ],
+    "5": [
+      "E007"
+    ],
+    "6": [
+      "E008",
+      "E009"
+    ],
+    "7": [
+      "E010",
+      "E013",
+      "E014"
+    ],
+    "8": [
+      "E011"
+    ],
+    "9": [
+      "E012"
+    ]
+  },
+  "switch_states": [
+    {
+      "id": "S0",
+      "description": "NORMAL RUNNING",
+      "open_transition": false,
+      "breakers": {
+        "CB-356": "closed"
+      }
+    },
+    {
+      "id": "S1",
+      "description": "INCOMER OPEN / OUTAGE",
+      "open_transition": true,
+      "breakers": {
+        "CB-356": "open"
+      }
+    }
+  ],
+  "meters": [
+    {
+      "tag": "PM-1044",
+      "role": "incomer",
+      "bus_section": "A",
+      "measures": "section incomer"
+    },
+    {
+      "tag": "PM-1035",
+      "role": "feeder",
+      "bus_section": "A",
+      "measures": [
+        "MTR-1164",
+        "PNL-1448"
+      ]
+    }
+  ],
+  "junctions": [
+    {
+      "center": [
+        256.74,
+        410
+      ],
+      "bbox": [
+        254.74,
+        408,
+        258.74,
+        412
+      ]
+    },
+    {
+      "center": [
+        163.86,
+        684
+      ],
+      "bbox": [
+        161.86,
+        682,
+        165.86,
+        686
+      ]
+    },
+    {
+      "center": [
+        252.05,
+        840
+      ],
+      "bbox": [
+        250.05,
+        838,
+        254.05,
+        842
+      ]
+    },
+    {
+      "center": [
+        252.05,
+        844
+      ],
+      "bbox": [
+        250.05,
+        842,
+        254.05,
+        846
+      ]
+    },
+    {
+      "center": [
+        0,
+        14.25
+      ],
+      "bbox": [
+        -2.1,
+        12.15,
+        2.1,
+        16.35
+      ]
+    },
+    {
+      "center": [
+        0,
+        -14.25
+      ],
+      "bbox": [
+        -2.1,
+        -16.35,
+        2.1,
+        -12.15
+      ]
+    },
+    {
+      "center": [
+        0,
+        14.25
+      ],
+      "bbox": [
+        -2.1,
+        12.15,
+        2.1,
+        16.35
+      ]
+    },
+    {
+      "center": [
+        0,
+        -14.25
+      ],
+      "bbox": [
+        -2.1,
+        -16.35,
+        2.1,
+        -12.15
+      ]
+    },
+    {
+      "center": [
+        0,
+        14.25
+      ],
+      "bbox": [
+        -2.1,
+        12.15,
+        2.1,
+        16.35
+      ]
+    },
+    {
+      "center": [
+        0,
+        -14.25
+      ],
+      "bbox": [
+        -2.1,
+        -16.35,
+        2.1,
+        -12.15
+      ]
+    }
+  ]
+}
