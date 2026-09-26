@@ -1,0 +1,25 @@
+---
+description: Preferred OpenRouter models for this project
+alwaysApply: true
+---
+
+# OpenRouter model picker
+
+This project previously used a `beforeSubmitPrompt` hook to block every Agent
+send until one of a fixed set of OpenRouter models was selected. That hook has
+been removed (2026-09-26) — Cursor did not reliably pass the selected model
+into the hook payload, so it always saw "unknown" and blocked all prompts,
+including ones with the intended bypass prefix.
+
+The favorite models are still listed in `.cursor/openrouter-models.json` and
+used by `.cursor/or-ask.mjs` for one-off terminal calls to OpenRouter:
+
+1. `stealth/space-bunny-alpha` — Space Bunny Alpha
+2. `nvidia/nemotron-3-ultra-550b-a55b:free` — Nemotron 3 Ultra (free)
+3. `inclusionai/ling-3.0-flash-fin:free` — Ling 3.0 Flash Fin (free)
+4. `z-ai/glm-5.3-flash` — GLM 5.3 Flash (paid)
+
+If the user asks to call OpenRouter MCP, confirm the slug before
+`send-message`, but do not block or gate the request on it.
+
+Never put `OPENROUTER_API_KEY` in repo files, commits, or chat logs.

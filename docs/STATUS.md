@@ -4,7 +4,7 @@ Updated: 2026-09-26
 
 ## Now
 
-Synthetic corpus exists and is the development set. Real sheets are the untouched test set. Object-detection work has started: isolated symbol crops, not a trained model.
+Synthetic corpus exists and is the development set. Real sheets are the untouched test set. Object-detection work has started: isolated symbol crops, not a trained model. A classifier (`src/Object Detection/Component Training/`) is ready to train on the manifest's train/val crops but has not been run — TensorFlow is not installed in `C:\Python313`.
 
 ## Done
 
@@ -13,7 +13,7 @@ Synthetic corpus exists and is the development set. Real sheets are the untouche
 - Each plant: `drawings/plant.sld|svg|png`, `graph/graph.json` (and csv), `data/*.csv`.
 - `node verify.mjs` checks recoverability, §4.3 electrical validity, and telemetry. Core tier was verified clean. `Synthetic Data/README.md` still says "10 plants" and is stale — trust `plan.md` §9.2.
 - Repo has no commits. Origin `https://github.com/ishuu19/Single-Line-Diagram-and-Energy-Mapping.git` is empty. Do not commit `Synthetic Data/*/data/`, `Electric Sample Data/data/`, or `component-symbols/` — those stay on Drive. Drawings and `graph/` stay in git.
-- Symbol-crop script: `Synthetic Data/_tools/components.mjs` → `component-symbols/` (YOLO, gitignored). 40 symbol classes + a `text` class (41 names in `data.yaml`). On disk so far: 40 train images (`*_00.png` only) and matching labels. Val is empty. Default run is `node components.mjs --per 12`.
+- Symbol-crop script: `Synthetic Data/_tools/components.mjs` → `component-symbols/` (YOLO, gitignored). 40 symbol classes + a `text` class (41 names in `data.yaml`). On disk now: 10,400 crops in `manifest.jsonl` — 8,320 `train` + 2,080 `val`, 40 symbol types (`text` never appears as a crop). Default run is `node components.mjs --per 12`.
 
 ## Not started
 
@@ -23,7 +23,7 @@ Synthetic corpus exists and is the development set. Real sheets are the untouche
 
 ## Next
 
-Finish the symbol-crop run (`--per 12`), then convert synthetic `graph.json` boxes to YOLO labels for full sheets. Real sheets stay held out.
+Install TensorFlow (`pip install "tensorflow>=2.20" keras-tuner`), then in `Component Training/`: `tune.py` → `train.py --hp custom_best_hp.json` → `evaluate.py`; compare a backbone run on the *degraded* metric. Then convert synthetic `graph.json` boxes to YOLO labels for full sheets. Real sheets stay held out.
 
 ## Conventions that affect results
 

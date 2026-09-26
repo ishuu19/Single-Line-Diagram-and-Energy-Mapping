@@ -14,6 +14,7 @@ Open the row for the task. Do not explore siblings.
 | One named plant | `Synthetic Data/<ID>/graph/graph.json` only. Skip `data/` unless the task is telemetry |
 | Isolated symbol crops | `Synthetic Data/_tools/components.mjs`, `component-symbols/data.yaml` |
 | Detector dataset choice | `docs/detection.md` |
+| Symbol-crop classifier (not the full-sheet detector) | `src/Object Detection/Component Training/` |
 | Real evaluation sheets | `Electric Sample Data/drawings/plant.pdf` and `Electric Sample Data/data/` |
 
 `manifest.json` under `Synthetic Data/` is the corpus index. Prefer it over listing plant folders.
