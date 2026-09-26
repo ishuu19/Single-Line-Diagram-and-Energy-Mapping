@@ -12,7 +12,7 @@ This is a classification sanity check on single-symbol crops, not the full-sheet
 | `data.py` | Reads the `train` / `val` splits from `component-symbols/manifest.jsonl`; inverted + padded resize, cached `tf.data`, one-hot labels, MixUp, balanced class weights |
 | `model.py` | Geometric augmentation + `RandomDegrade` (scan damage), custom BN-CNN or ImageNet backbone, AdamW + EMA, label smoothing |
 | `train.py` | Warmup + cosine LR, early stopping, best checkpoint, CSV + TensorBoard; two-phase fine-tune for backbones |
-| `tune.py` | KerasTuner Hyperband over LR, weight decay, dropout, width, label smoothing, MixUp |
+| `tune.py` | `--mode near` (default): Bayesian search one notch either side of `DEFAULT_HP`. `--mode wide`: Hyperband over the full space. Both include `degrade_prob` |
 | `evaluate.py` | Clean / TTA / degraded accuracy, report, most-confused pairs, confusion matrix |
 | `notebooks/component_classification.ipynb` | End-to-end walkthrough |
 
@@ -22,9 +22,9 @@ The synthetic crops are clean and perfectly balanced (208 train / 52 val per typ
 
 - **Input**: inverted before a padded resize, so ink is bright, paper tint collapses toward 0, aspect ratio is preserved, and padding matches the background.
 - **Geometric augmentation**: small rotation, zoom, translation, contrast. No flips — `transformer_dy` vs `transformer_yd` are not mirror-safe. Orientation is already varied in the crops.
-- **`RandomDegrade`**: random line thickening/thinning, Gaussian blur, noise, and rectangular occlusion. This is domain randomisation standing in for scan artefacts. It is a saved layer, inert at inference.
-- **Regularisation**: MixUp in the pipeline, label smoothing, AdamW weight decay, dropout, EMA weights. Class weights are balanced from the train split (currently all 1.0, kept so uneven future crop runs stay safe).
-- **Schedule**: linear warmup then cosine decay; early stopping on `val_loss` with best-weight restore.
+- **`RandomDegrade`**: random line thickening, Gaussian blur, noise, and rectangular occlusion, applied per sample to about half of each batch. This is domain randomisation standing in for scan artefacts. Leaving the rest of the batch clean matters: when every training image was degraded, BatchNorm statistics drifted from the clean val distribution and val accuracy swung 20+ points between epochs. It is a saved layer, inert at inference.
+- **Regularisation**: MixUp in the pipeline, label smoothing, AdamW weight decay, dropout. Class weights are balanced from the train split (currently all 1.0, kept so uneven future crop runs stay safe). Train accuracy/loss are reported on MixUp-blended, label-smoothed batches, so they sit well below val; compare val across runs, not train.
+- **Schedule**: linear warmup then cosine decay over `EPOCHS`. Keep `EPOCHS` short enough for the decay to finish — the low-LR tail is where val stabilises. Early stopping (patience 30) is a safety net, not the intended exit.
 - **Backbones**: `--backbone efficientnetv2b0 | mobilenetv3small | convnexttiny` trains a frozen head first, then unfreezes at a tenth of the LR. Compare against the custom CNN on the *degraded* metric, not the clean one.
 - **Evaluation**: `clean`, `tta` (averaged softmax over geometric views), and `degraded` (val passed through `RandomDegrade`). Report all three.
 - **Classes**: the 40 symbol types that exist as crops. `text` is in `classes.txt` for the detector but only ever appears as a box inside a crop, so it is dropped here.
@@ -41,12 +41,14 @@ Two things a GAN could do here, and why neither is worth it now:
 
 ```bash
 pip install -r requirements.txt
-python tune.py                      # writes outputs/custom_best_hp.json
+python tune.py                      # near search, ~12 trials; writes outputs/custom_best_hp.json + custom_near_trials.json
 python train.py --hp custom_best_hp.json
 python evaluate.py --model custom
 python train.py --backbone efficientnetv2b0 && python evaluate.py --model efficientnetv2b0
 tensorboard --logdir logs
 ```
+
+Tuning runs at a constant LR for up to `TUNE_MAX_EPOCHS`, so trial scores rank configurations; the final `train.py` run with the winning `--hp` (full cosine schedule) is the number to report. A trial only counts as an improvement if it beats the baseline's 96.4% by more than the run-to-run spread — check `<tag>_near_trials.json`, not just the top score.
 
 Outputs per tag: `models/<tag>.keras`, `models/<tag>_best.keras`, `outputs/<tag>_history.{csv,json}`, `outputs/<tag>_metrics.json`, `outputs/<tag>_confusion_matrix.png`. `models/class_names.json` maps logits to names.
 

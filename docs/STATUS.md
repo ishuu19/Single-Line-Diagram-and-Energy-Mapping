@@ -13,7 +13,8 @@ Synthetic corpus exists and is the development set. Real sheets are the untouche
 - Each plant: `drawings/plant.sld|svg|png`, `graph/graph.json` (and csv), `data/*.csv`.
 - `node verify.mjs` checks recoverability, §4.3 electrical validity, and telemetry. Core tier was verified clean. `Synthetic Data/README.md` still says "10 plants" and is stale — trust `plan.md` §9.2.
 - Repo: `main` @ `10ec011`, origin `https://github.com/ishuu19/Single-Line-Diagram-and-Energy-Mapping.git`.
-- Symbol-crop script: `Synthetic Data/_tools/components.mjs` → `component-symbols/` (YOLO). 40 symbol classes + a `text` class (41 names in `data.yaml`). On disk so far: 40 train images (`*_00.png` only) and matching labels. Val is empty. Default run is `node components.mjs --per 12`.
+- Symbol-crop script: `Synthetic Data/_tools/components.mjs` → `component-symbols/` (YOLO). 40 symbol classes + a `text` class (41 names in `data.yaml`). On disk and on Drive: 8,320 `train` + 2,080 `val` crops in `manifest.jsonl`, 40 symbol types (`text` never appears as a crop). Default run is `node components.mjs --per 12`.
+- Symbol-crop classifier in `src/Object Detection/Component Training/` (CircuitNet-inspired, see `Inspired/circuitnet.md`). First Colab run: 96.4% clean val but unstable; augmentation gating fixed since, not yet re-run. Colab notebook: `notebooks/colab_component_training.ipynb`.
 
 ## Not started
 
@@ -23,7 +24,7 @@ Synthetic corpus exists and is the development set. Real sheets are the untouche
 
 ## Next
 
-Finish the symbol-crop run (`--per 12`), then convert synthetic `graph.json` boxes to YOLO labels for full sheets. Real sheets stay held out.
+Re-run the classifier on Colab with the gated augmentation and record clean / TTA / degraded val in `outputs/`. Then convert synthetic `graph.json` boxes to YOLO labels for full sheets. Real sheets stay held out.
 
 ## Conventions that affect results
 

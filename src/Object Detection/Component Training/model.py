@@ -1,42 +1,41 @@
 import tensorflow as tf
 from tensorflow.keras import layers, models
 
-from config import BLUR, CONTRAST, DEFAULT_HP, EMA_MOMENTUM, ERASE, IMG_SIZE, NOISE, ROTATION, TRANSLATION, ZOOM
+from config import BLUR, CONTRAST, DEFAULT_HP, DEGRADE_PROB, ERASE, IMG_SIZE, NOISE, ROTATION, TRANSLATION, ZOOM
+
+
+def _per_sample(x, prob):
+    return tf.random.uniform([tf.shape(x)[0], 1, 1, 1]) < prob
 
 
 @tf.keras.utils.register_keras_serializable(package="component_training")
 class RandomDegrade(layers.Layer):
-    """Scan-like damage on inverted 0-255 crops: line thickness, blur, noise, occlusion."""
+    """Scan-like damage on inverted 0-255 crops: line thickening, blur, noise, occlusion."""
 
-    def __init__(self, noise=NOISE, blur=BLUR, erase=ERASE, **kwargs):
+    def __init__(self, noise=NOISE, blur=BLUR, erase=ERASE, prob=DEGRADE_PROB, **kwargs):
         kwargs.setdefault("dtype", "float32")
         super().__init__(**kwargs)
-        self.noise, self.blur, self.erase = noise, blur, erase
+        self.noise, self.blur, self.erase, self.prob = noise, blur, erase, prob
 
     def call(self, x, training=None):
         if not training:
             return x
-        x = self._thickness(x)
-        x = self._blur(x)
-        x = x + tf.random.normal(tf.shape(x), dtype=x.dtype) * tf.random.uniform([], 0.0, self.noise) * 255.0
-        x = self._erase(x)
-        return tf.clip_by_value(x, 0.0, 255.0)
-
-    def _thickness(self, x):
-        choice = tf.random.uniform([], 0, 3, tf.int32)
-        return tf.switch_case(choice, [
-            lambda: x,
-            lambda: tf.nn.max_pool2d(x, 3, 1, "SAME"),
-            lambda: -tf.nn.max_pool2d(-x, 3, 1, "SAME"),
-        ])
+        y = tf.where(_per_sample(x, 0.5), tf.nn.max_pool2d(x, 3, 1, "SAME"), x)
+        y = self._blur(y)
+        std = tf.random.uniform([tf.shape(x)[0], 1, 1, 1], 0.0, self.noise, dtype=y.dtype) * 255.0
+        y = y + tf.random.normal(tf.shape(y), dtype=y.dtype) * std
+        y = tf.clip_by_value(self._erase(y), 0.0, 255.0)
+        # leave part of every batch clean so BatchNorm statistics match the clean validation set
+        return tf.where(_per_sample(x, self.prob), y, x)
 
     def _blur(self, x):
-        sigma = tf.random.uniform([], 0.05, self.blur)
+        sigma = tf.random.uniform([], 0.3, self.blur)
         r = tf.range(-2.0, 3.0)
         k1 = tf.exp(-(r ** 2) / (2.0 * sigma ** 2))
         k1 = k1 / tf.reduce_sum(k1)
         kernel = tf.cast(k1[:, None] * k1[None, :], x.dtype)[:, :, None, None]
-        return tf.nn.depthwise_conv2d(x, kernel, [1, 1, 1, 1], "SAME")
+        blurred = tf.nn.depthwise_conv2d(x, kernel, [1, 1, 1, 1], "SAME")
+        return tf.where(_per_sample(x, 0.5), blurred, x)
 
     def _erase(self, x):
         b, h, w = tf.shape(x)[0], tf.shape(x)[1], tf.shape(x)[2]
@@ -50,7 +49,7 @@ class RandomDegrade(layers.Layer):
         return x * (1.0 - tf.cast(mask, x.dtype))[..., None]
 
     def get_config(self):
-        return {**super().get_config(), "noise": self.noise, "blur": self.blur, "erase": self.erase}
+        return {**super().get_config(), "noise": self.noise, "blur": self.blur, "erase": self.erase, "prob": self.prob}
 
 
 def build_geometric():
@@ -94,7 +93,7 @@ def build_model(num_classes, hp=None, backbone=None):
     hp = {**DEFAULT_HP, **(hp or {})}
     inputs = layers.Input(shape=(*IMG_SIZE, 1))
     x = build_geometric()(inputs)
-    x = RandomDegrade(name="degrade")(x)
+    x = RandomDegrade(prob=hp["degrade_prob"], name="degrade")(x)
 
     x = backbone_features(x, backbone) if backbone else custom_features(x, hp["width"])
 
@@ -108,12 +107,7 @@ def build_model(num_classes, hp=None, backbone=None):
 def compile_model(model, learning_rate, hp=None):
     hp = {**DEFAULT_HP, **(hp or {})}
     model.compile(
-        optimizer=tf.keras.optimizers.AdamW(
-            learning_rate=learning_rate,
-            weight_decay=hp["weight_decay"],
-            use_ema=True,
-            ema_momentum=EMA_MOMENTUM,
-        ),
+        optimizer=tf.keras.optimizers.AdamW(learning_rate=learning_rate, weight_decay=hp["weight_decay"]),
         loss=tf.keras.losses.CategoricalCrossentropy(from_logits=True, label_smoothing=hp["label_smoothing"]),
         metrics=[
             tf.keras.metrics.CategoricalAccuracy(name="accuracy"),
