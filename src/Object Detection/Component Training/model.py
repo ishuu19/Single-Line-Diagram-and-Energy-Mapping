@@ -4,7 +4,7 @@ from tensorflow.keras import layers, models
 from config import BLUR, CONTRAST, DEFAULT_HP, EMA_MOMENTUM, ERASE, IMG_SIZE, NOISE, ROTATION, TRANSLATION, ZOOM
 
 
-@tf.keras.saving.register_keras_serializable(package="component_training")
+@tf.keras.utils.register_keras_serializable(package="component_training")
 class RandomDegrade(layers.Layer):
     """Scan-like damage on inverted 0-255 crops: line thickness, blur, noise, occlusion."""
 
