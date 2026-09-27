@@ -7,7 +7,7 @@ import tensorflow as tf
 from sklearn.metrics import ConfusionMatrixDisplay, classification_report
 
 import model as _  # registers RandomDegrade for load_model
-from config import MODEL_DIR, OUTPUT_DIR, SEED, TTA_PASSES
+from config import MODEL_DIR, OUTPUT_DIR, PRINTED_TEST_DATA_DIR, SEED, TEST_DATA_DIR, TTA_PASSES
 from data import load_datasets, load_external_test_dataset
 
 
@@ -38,9 +38,10 @@ def main():
     parser.add_argument("--model", default="custom", help="tag used by train.py, e.g. custom or efficientnetv2b0")
     parser.add_argument(
         "--split",
-        choices=("val", "cghd-test"),
+        choices=("val", "cghd-test", "printed-test"),
         default="val",
-        help="val = Schematex val; cghd-test = component-symbols-test (CGHD crops)",
+        help="val = Schematex val; cghd-test = component-symbols-test (CGHD hand-drawn); "
+        "printed-test = component-symbols-test-printed (held-out printed style)",
     )
     parser.add_argument("--out-suffix", default="", help="appended to output names, e.g. _raw for un-normalised test crops")
     args = parser.parse_args()
@@ -49,13 +50,15 @@ def main():
     _, val_ds, class_names, _ = load_datasets()
     eval_ds = val_ds
     split_tag = "val"
-    if args.split == "cghd-test":
-        eval_ds = load_external_test_dataset(class_names)
+    external = {
+        "cghd-test": (TEST_DATA_DIR, "cghd_test", "run build_cghd_test_crops.py from Component Training"),
+        "printed-test": (PRINTED_TEST_DATA_DIR, "printed_test", "run node components_test.mjs in Synthetic Data/_tools"),
+    }
+    if args.split in external:
+        data_dir, split_tag, hint = external[args.split]
+        eval_ds = load_external_test_dataset(class_names, data_dir)
         if eval_ds is None:
-            raise SystemExit(
-                "component-symbols-test not found. Run build_cghd_test_crops.py from Component Training."
-            )
-        split_tag = "cghd_test"
+            raise SystemExit(f"{data_dir.name} not found; {hint}.")
     split_tag += args.out_suffix
 
     # compile=False: inference only, and skips the stale optimizer state saved with older checkpoints

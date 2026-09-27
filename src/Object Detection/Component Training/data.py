@@ -115,12 +115,12 @@ def read_test_manifest(data_dir=TEST_DATA_DIR):
     return rows_from_yolo_labels(data_dir)
 
 
-def load_external_test_dataset(class_names):
-    """CGHD (or other) test crops; labels aligned to the training classifier vocabulary."""
-    if not TEST_DATA_DIR.is_dir():
+def load_external_test_dataset(class_names, data_dir=TEST_DATA_DIR):
+    """External test crops (CGHD by default); labels aligned to the training classifier vocabulary."""
+    if not data_dir.is_dir():
         return None
-    rows = read_test_manifest()
-    paths, labels = split_arrays(rows, "test", class_names, data_dir=TEST_DATA_DIR)
+    rows = read_test_manifest(data_dir)
+    paths, labels = split_arrays(rows, "test", class_names, data_dir=data_dir)
     if len(paths) == 0:
         return None
     return make_dataset(paths, labels, len(class_names), training=False)

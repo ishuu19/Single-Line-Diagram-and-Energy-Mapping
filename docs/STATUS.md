@@ -13,8 +13,9 @@ Synthetic corpus exists and is the development set. Real sheets are the untouche
 - Each plant: `drawings/plant.sld|svg|png`, `graph/graph.json` (and csv), `data/*.csv`.
 - `node verify.mjs` checks recoverability, §4.3 electrical validity, and telemetry. Core tier was verified clean. `Synthetic Data/README.md` still says "10 plants" and is stale — trust `plan.md` §9.2.
 - Repo: `main` @ `10ec011`, origin `https://github.com/ishuu19/Single-Line-Diagram-and-Energy-Mapping.git`.
-- Symbol-crop script: `Synthetic Data/_tools/components.mjs` → `component-symbols/` (YOLO). 40 symbol classes + a `text` class (41 names in `data.yaml`). On disk and on Drive: 8,320 `train` + 2,080 `val` crops in `manifest.jsonl`, 40 symbol types (`text` never appears as a crop). Default run is `node components.mjs --per 12`.
+- Symbol-crop script: `Synthetic Data/_tools/components.mjs` → `component-symbols/` (YOLO). **64 symbol classes** + `text` (65 names): Schematex's 40 plus 24 hand-drawn in `symbols_extra.mjs` (panel, feeder, CT test block, fused voltage block, DC supply, NO/NC contact, terminal block, chiller, aux load, battery, inverter, rectifier, EV charger, soft starter, reactor, ground, NGR, static switch, pushbutton, pilot light, overload, fused disconnect, coil), 2–3 drawings each, plus alternative drawings for 13 common types. Regenerated 2026-09-27 with `--per 260`: 13,312 train + 3,328 val on disk. **Kaggle/Drive copies and `models/notebook_best.keras` are for the old 40-class set; re-upload and retrain.** The 24 new types exist as crops only, not in plant `graph.json`.
 - Symbol-crop classifier in `src/Object Detection/Component Training/` (CircuitNet-inspired, see `Inspired/circuitnet.md`). Kaggle run with gated augmentation: 99.5% clean / 99.5% TTA / 99.3% degraded val; checkpoint committed as `models/notebook_best.keras`. Runner: `notebooks/kaggle_component_training.ipynb` (clone/pull repo, link attached datasets, call the scripts). Colab notebook is older.
+- Held-out **printed** test crops: `Synthetic Data/_tools/components_test.mjs` → `component-symbols-test-printed/` (192 crops, 3 per type, 64 types, committed). Unseen fonts / strokes / tints / scales / 180° / zoom. `notebook_best` scores 36% clean, 39% TTA, 37% degraded there vs 99.5% val; 0° crops 59%, 90°/180° 21%. The classifier is fitted to the training style, not the symbols.
 - External **test-only** crops: CGHD → `component-symbols-test/` via `build_cghd_test_crops.py` + `cghd_to_sld.json`. 16 crops on disk from partial HF cache; ~1,083 mappable when all CGHD images are available. `normalise_test_crops.py` maps them to the Schematex domain; `evaluate.py --split cghd-test` scores them (`--out-suffix _raw` for the un-normalised pass). On the 16 crops `notebook_best` scores 0% raw and 0% clean / 6% degraded normalised: the domain gap is not closed.
 
 ## Not started
@@ -25,7 +26,7 @@ Synthetic corpus exists and is the development set. Real sheets are the untouche
 
 ## Next
 
-Run the Kaggle notebook against the full CGHD test upload (~1k crops) to get a real domain-shift number; the 16-crop score is not meaningful. Then convert synthetic `graph.json` boxes to YOLO labels for full sheets. Real sheets stay held out.
+Upload the regenerated 64-class `component-symbols/` to Kaggle, retrain (the 36% printed-test result argues for 180° and wider scale/stroke augmentation at the same time), re-score `--split printed-test` on the 192-crop set. CGHD stays as the harder, hand-drawn check. Then convert synthetic `graph.json` boxes to YOLO labels for full sheets. Real sheets stay held out.
 
 ## Conventions that affect results
 

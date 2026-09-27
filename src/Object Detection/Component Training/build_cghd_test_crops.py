@@ -40,6 +40,10 @@ SLD_TYPES = [
     "ct", "pt", "relay", "surge_arrester", "ground_fault", "rcd",
     "motor", "load", "capacitor_bank", "harmonic_filter", "vfd",
     "watthour_meter", "demand_meter", "consumer_unit",
+    # hand-drawn types from Synthetic Data/_tools/symbols_extra.mjs (ids 40-63)
+    "panel", "feeder", "ct_test_block", "fused_voltage_block", "dc_supply", "contact_no", "contact_nc",
+    "terminal_block", "chiller", "aux_load", "battery", "inverter", "rectifier", "ev_charger", "soft_starter",
+    "reactor", "ground", "ngr", "static_switch", "pushbutton", "pilot_light", "overload", "disconnect_fused", "coil",
 ]
 TEXT_CLASS = "text"
 CLASSES = SLD_TYPES + [TEXT_CLASS]
