@@ -1,15 +1,17 @@
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-DATA_DIR = REPO_ROOT / "component-symbols"
+# datasets live under Data/ (gitignored except the printed-test zip)
+DATA_ROOT = REPO_ROOT / "Data"
+DATA_DIR = DATA_ROOT / "component-symbols"
 MANIFEST_PATH = DATA_DIR / "manifest.jsonl"
 CLASSES_PATH = DATA_DIR / "classes.txt"
 
 # External test crops (CGHD → SLD mapping); never used for training
-TEST_DATA_DIR = REPO_ROOT / "component-symbols-test"
+TEST_DATA_DIR = DATA_ROOT / "component-symbols-test"
 TEST_MANIFEST_PATH = TEST_DATA_DIR / "manifest.jsonl"
 # Held-out printed-style crops from Synthetic Data/_tools/components_test.mjs; committed, evaluation only
-PRINTED_TEST_DATA_DIR = REPO_ROOT / "component-symbols-test-printed"
+PRINTED_TEST_DATA_DIR = DATA_ROOT / "component-symbols-test-printed"
 
 IMG_SIZE = (128, 128)
 BATCH_SIZE = 32

@@ -25,7 +25,7 @@ from huggingface_hub.errors import HfHubHTTPError
 from PIL import Image
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-OUT_DIR = REPO_ROOT / "component-symbols-test"
+OUT_DIR = REPO_ROOT / "Data" / "component-symbols-test"
 MAP_PATH = Path(__file__).resolve().parent / "cghd_to_sld.json"
 HF_REPO = "lowercaseonly/cghd"
 
@@ -44,6 +44,7 @@ SLD_TYPES = [
     "panel", "feeder", "ct_test_block", "fused_voltage_block", "dc_supply", "contact_no", "contact_nc",
     "terminal_block", "chiller", "aux_load", "battery", "inverter", "rectifier", "ev_charger", "soft_starter",
     "reactor", "ground", "ngr", "static_switch", "pushbutton", "pilot_light", "overload", "disconnect_fused", "coil",
+    "compressor", "heat_exchanger",
 ]
 TEXT_CLASS = "text"
 CLASSES = SLD_TYPES + [TEXT_CLASS]

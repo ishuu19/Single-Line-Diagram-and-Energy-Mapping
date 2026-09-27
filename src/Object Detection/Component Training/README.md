@@ -23,7 +23,7 @@ This is a classification sanity check on single-symbol crops, not the full-sheet
 
 ### Held-out printed test crops (`component-symbols-test-printed/`)
 
-192 crops (3 per type, 64 types) rendered by `Synthetic Data/_tools/components_test.mjs` with a style regime never used in training: fonts (Tahoma, Georgia, Courier New, Trebuchet, Candara, Corbel), stroke widths 0.6/1.15/2.3, four new paper tints, scales 0.75/1.3/1.45, 180° orientation, zoom 3, fresh seeds. Printed, not hand drawn. Committed to the repo (1 MB) so Kaggle gets it with `git pull`.
+198 crops (3 per type, 66 types) rendered by `Synthetic Data/_tools/components_test.mjs` with a style regime never used in training: fonts (Tahoma, Georgia, Courier New, Trebuchet, Candara, Corbel), stroke widths 0.6/1.15/2.3, four new paper tints, scales 0.75/1.3/1.45, 180° orientation, zoom 3, fresh seeds. Printed, not hand drawn. Committed to the repo (1 MB) so Kaggle gets it with `git pull`.
 
 ```bash
 python evaluate.py --model notebook_best --split printed-test
@@ -66,7 +66,7 @@ The synthetic crops are clean and perfectly balanced (208 train / 52 val per typ
 - **Schedule**: linear warmup then cosine decay over `EPOCHS`. Keep `EPOCHS` short enough for the decay to finish — the low-LR tail is where val stabilises. Early stopping (patience 30) is a safety net, not the intended exit.
 - **Backbones**: `--backbone efficientnetv2b0 | mobilenetv3small | convnexttiny` trains a frozen head first, then unfreezes at a tenth of the LR. Compare against the custom CNN on the *degraded* metric, not the clean one.
 - **Evaluation**: `clean`, `tta` (averaged softmax over geometric views), and `degraded` (val passed through `RandomDegrade`). Report all three.
-- **Classes**: the 64 symbol types that exist as crops: Schematex's 40 plus 24 hand-drawn in `Synthetic Data/_tools/symbols_extra.mjs` (panel, feeder, CT test block, fused voltage block, DC supply, NO/NC contacts, terminal block, chiller, aux load, battery, inverter, rectifier, EV charger, soft starter, reactor, ground, NGR, static switch, pushbutton, pilot light, overload, fused disconnect, coil). Each new type has 2–3 drawing variants; common Schematex types also get alternative drawings 35% of the time (boxed breaker, zigzag transformer, `M 3~` motor...). `text` is in `classes.txt` for the detector but only ever appears as a box inside a crop, so it is dropped here.
+- **Classes**: the 66 symbol types that exist as crops: Schematex's 40 plus 26 hand-drawn in `Synthetic Data/_tools/symbols_extra.mjs` (panel, feeder, CT test block, fused voltage block, DC supply, NO/NC contacts, terminal block, chiller, aux load, battery, inverter, rectifier, EV charger, soft starter, reactor, ground, NGR, static switch, pushbutton, pilot light, overload, fused disconnect, coil, compressor, heat exchanger). Each new type has 2–4 drawing variants, several copied from the drawing conventions of the real sheet (`Data/Electric Sample Data/drawings/plant.pdf`: dashed panel boxes, inline test/fuse/terminal blocks, knife contacts, pump/fan motors, diagonal 3~ VFD, boxed kW/kWh meters); common Schematex types also get alternative drawings 35% of the time. `text` is in `classes.txt` for the detector but only ever appears as a box inside a crop, so it is dropped here.
 - **Mixed precision** is enabled automatically on GPU; the logits head stays float32.
 
 ### Why no GAN
@@ -95,4 +95,4 @@ Tuning runs at a constant LR for up to `TUNE_MAX_EPOCHS`, so trial scores rank c
 
 Outputs per tag: `models/<tag>.keras`, `models/<tag>_best.keras`, `outputs/<tag>_history.{csv,json}`, `outputs/<tag>_metrics.json`, `outputs/<tag>_confusion_matrix.png`. `models/class_names.json` maps logits to names.
 
-Needs `component-symbols/` populated (`node Synthetic\ Data/_tools/components.mjs --per 260`, 64 types × 260 = 16,640 crops); it is gitignored and lives on Drive. Use `C:\Python313\python.exe` (numpy/sklearn/matplotlib already there); TensorFlow for Python 3.13 needs `tensorflow>=2.20`.
+Needs `Data/component-symbols/` populated (`node Synthetic\ Data/_tools/components_all.mjs --per 1516 --test 1000`, one process per type: 66 types, 99,056 train + 1,000 test, ~0.7 GB; `--val N` adds a separate validation split, otherwise `data.py` validates on `test`); it is gitignored and lives on Drive. Use `C:\Python313\python.exe` (numpy/sklearn/matplotlib already there); TensorFlow for Python 3.13 needs `tensorflow>=2.20`.

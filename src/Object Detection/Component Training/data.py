@@ -38,11 +38,16 @@ def split_arrays(rows, split, class_names, data_dir=DATA_DIR):
     return paths, labels
 
 
+def validation_split(rows):
+    """`val` when the crop set has one; otherwise the held-out `test` split doubles as validation."""
+    return "val" if any(r["split"] == "val" for r in rows) else "test"
+
+
 def load_arrays():
     rows = read_manifest()
     class_names = classifier_classes(rows)
     train = split_arrays(rows, "train", class_names)
-    val = split_arrays(rows, "val", class_names)
+    val = split_arrays(rows, validation_split(rows), class_names)
     return train, val, class_names
 
 
