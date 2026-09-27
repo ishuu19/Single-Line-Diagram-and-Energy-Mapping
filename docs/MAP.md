@@ -17,6 +17,7 @@ Open the row for the task. Do not explore siblings.
 | Held-out printed test crops | `Synthetic Data/_tools/components_test.mjs` → `Data/component-symbols-test-printed/` (zip committed) |
 | Train / evaluate the crop classifier on Kaggle | `src/Object Detection/Component Training/notebooks/kaggle_component_training.ipynb`, then that folder's `README.md` |
 | Detector dataset choice | `docs/detection.md` |
+| Full-sheet detection + wire tracing → graph | `src/Object Detection/SLD Training/README.md`, then `wires.py`; Kaggle runner `notebooks/kaggle_sld_pipeline.ipynb` (both stages) |
 | Real evaluation sheets | `Data/Electric Sample Data/drawings/plant.pdf` and `Data/Electric Sample Data/data/` |
 
 `manifest.json` under `Synthetic Data/` is the corpus index. Prefer it over listing plant folders.

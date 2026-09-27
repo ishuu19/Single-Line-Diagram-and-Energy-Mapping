@@ -1,7 +1,7 @@
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-# datasets live under Data/ (gitignored except the printed-test zip)
+# datasets live under Data/ (gitignored; no *.zip in git)
 DATA_ROOT = REPO_ROOT / "Data"
 DATA_DIR = DATA_ROOT / "component-symbols"
 MANIFEST_PATH = DATA_DIR / "manifest.jsonl"
