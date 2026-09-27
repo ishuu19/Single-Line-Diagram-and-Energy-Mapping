@@ -13,8 +13,37 @@ This is a classification sanity check on single-symbol crops, not the full-sheet
 | `model.py` | Geometric augmentation + `RandomDegrade` (scan damage), custom BN-CNN or ImageNet backbone, AdamW + EMA, label smoothing |
 | `train.py` | Warmup + cosine LR, early stopping, best checkpoint, CSV + TensorBoard; two-phase fine-tune for backbones |
 | `tune.py` | `--mode near` (default): Bayesian search one notch either side of `DEFAULT_HP`. `--mode wide`: Hyperband over the full space. Both include `degrade_prob` |
-| `evaluate.py` | Clean / TTA / degraded accuracy, report, most-confused pairs, confusion matrix |
+| `evaluate.py` | Clean / TTA / degraded accuracy, report, most-confused pairs, confusion matrix. `--split cghd-test` scores the external crops; `--out-suffix _raw` keeps a second set of outputs |
+| `normalise_test_crops.py` | Flattens paper, snaps ink to black and pads external crops to a square so they match the Schematex domain. Idempotent: raw crops move to `images/test_raw` |
+| `build_cghd_test_crops.py` | Export held-out **test** crops from [CGHD](https://huggingface.co/datasets/lowercaseonly/cghd) → `component-symbols-test/` (see below) |
+| `cghd_to_sld.json` | Maps CGHD class names onto the SLD vocabulary used in training |
 | `notebooks/component_classification.ipynb` | End-to-end walkthrough |
+| `notebooks/kaggle_component_training.ipynb` | Kaggle runner: clones/pulls the repo, links the attached crop datasets, then calls the scripts above. No logic of its own |
+| `notebooks/colab_component_training.ipynb` | Older Colab runner |
+
+### External test crops (`component-symbols-test/`)
+
+Training uses Schematex crops in `component-symbols/`. For domain-shift checks without touching `Electric Sample Data`, export hand-drawn symbol crops from CGHD (CC0, separate source):
+
+```bash
+# Full set (~1k mappable crops). Set HF_TOKEN in the environment if Hub rate-limits you.
+python build_cghd_test_crops.py --refresh
+
+# Or point at a local CGHD tree (Kaggle zip / git clone):
+python build_cghd_test_crops.py --cghd-root "D:/datasets/cghd" --refresh
+```
+
+Outputs: `images/test/`, YOLO `labels/test/`, `manifest.jsonl` (`split: test`, `source: cghd`). If a copy arrives without `manifest.jsonl` (e.g. a Kaggle upload), `data.py` rebuilds the rows from `labels/test/*.txt`.
+
+Score raw first, then normalised — the gap between the two is the domain shift the classifier has to survive:
+
+```bash
+python evaluate.py --model custom_best --split cghd-test --out-suffix _raw
+python normalise_test_crops.py --preview 6
+python evaluate.py --model custom_best --split cghd-test
+```
+
+The dataset is test-only by design.
 
 ## Why these choices
 
@@ -36,6 +65,10 @@ Two things a GAN could do here, and why neither is worth it now:
 
 1. *More crops* — `Synthetic Data/_tools/components.mjs` already generates unlimited perfectly labelled crops for free. A GAN would only add label noise.
 2. *Synthetic → real style transfer* (CycleGAN-style) — needs unpaired real images to learn from, and the only real sheets are the four held-out test drawings in `Electric Sample Data/`. Training on their style leaks the test domain and weakens the RQ4 claim. `RandomDegrade` is the honest substitute. Revisit if extra real drawings that are *not* in the test set are obtained.
+
+## Run on Kaggle
+
+Upload `notebooks/kaggle_component_training.ipynb` as a Kaggle notebook, attach the training crops and the CGHD test crops as datasets, turn on GPU + Internet, run top to bottom. It clones (or `git pull`s) this repo into `/kaggle/working` and runs the scripts below; artefacts are copied to `/kaggle/working/component_train_outputs`.
 
 ## Run
 

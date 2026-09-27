@@ -5,6 +5,10 @@ DATA_DIR = REPO_ROOT / "component-symbols"
 MANIFEST_PATH = DATA_DIR / "manifest.jsonl"
 CLASSES_PATH = DATA_DIR / "classes.txt"
 
+# External test crops (CGHD → SLD mapping); never used for training
+TEST_DATA_DIR = REPO_ROOT / "component-symbols-test"
+TEST_MANIFEST_PATH = TEST_DATA_DIR / "manifest.jsonl"
+
 IMG_SIZE = (128, 128)
 BATCH_SIZE = 32
 SEED = 123

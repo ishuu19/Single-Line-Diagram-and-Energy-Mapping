@@ -31,3 +31,5 @@ Skip LibreYOLO/circuit-elements (PCB photos) and the Figshare 15-class substatio
 4. Our graphs also need power / measurement / control edges. None of the public sets label those.
 
 Our own crops (IEEE 315, with nameplate text) are produced by `node components.mjs` in `Synthetic Data/_tools/`. That is the set that actually matches the drawings.
+
+**Held-out component test set (not Schematex):** `build_cghd_test_crops.py` exports mapped CGHD symbol crops into `component-symbols-test/` (`split: test` only). Class mapping is in `cghd_to_sld.json` (transformer, motor, switch, relay, fuse, ct, pt, etc.). Full export needs the CGHD images on disk (Hugging Face cache with `HF_TOKEN`, Kaggle `johannesbayer/cghd1152`, or DFKI clone).

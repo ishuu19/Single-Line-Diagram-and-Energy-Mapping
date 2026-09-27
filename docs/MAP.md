@@ -13,6 +13,8 @@ Open the row for the task. Do not explore siblings.
 | Graph + telemetry construction | `_tools/build.mjs`, `_tools/series.mjs` |
 | One named plant | `Synthetic Data/<ID>/graph/graph.json` only. Skip `data/` unless the task is telemetry |
 | Isolated symbol crops | `Synthetic Data/_tools/components.mjs`, `component-symbols/data.yaml` |
+| External test symbol crops (CGHD) | `src/Object Detection/Component Training/build_cghd_test_crops.py` → `component-symbols-test/` |
+| Train / evaluate the crop classifier on Kaggle | `src/Object Detection/Component Training/notebooks/kaggle_component_training.ipynb`, then that folder's `README.md` |
 | Detector dataset choice | `docs/detection.md` |
 | Real evaluation sheets | `Electric Sample Data/drawings/plant.pdf` and `Electric Sample Data/data/` |
 
