@@ -83,3 +83,101 @@ Ultralytics owns the loop. For these arguments, each step is:
 5. Batch size 8. Best weights by the ultralytics fitness score are `runs/sld/weights/best.pt`, copied to `models/sld_yolov8s.pt`.
 
 The test split is not in this `train` call. It is only used afterwards, when the notebook runs `model.val(split="test")`.
+
+## The symbol network, layer by layer
+
+This is the network Stage A fits. Nothing is loaded from a pretrained model. Stage B is a different network, YOLOv8s, and its layers are not this stack.
+
+A crop enters as one grayscale picture, 128 by 128, one channel. Ink is bright. Paper is near zero. The values are still on the 0 to 255 scale. The sizes below are height, width, and depth.
+
+```
+128 × 128 × 1
+        |
+        |   training only — skipped when a crop is scored
+        |   turn by about ±11°
+        |   zoom by about ±10%
+        |   shift by about ±8% of height and of width
+        |   contrast by about ±30%
+        |   then, on half the batch only:
+        |       thicken strokes, blur, add noise, wipe a small rectangle
+        |
+        v
+divide every pixel by 255          still 128 × 128 × 1
+        |
+        v
+-------- block 1, 32 filters --------
+convolution 3×3, 32 filters        128 × 128 × 32
+batch normalisation
+ReLU
+convolution 3×3, 32 filters        128 × 128 × 32
+batch normalisation
+ReLU
+max pool 2×2                       64 × 64 × 32
+        |
+        v
+-------- block 2, 64 filters --------
+convolution 3×3, 64 filters        64 × 64 × 64
+batch normalisation
+ReLU
+convolution 3×3, 64 filters        64 × 64 × 64
+batch normalisation
+ReLU
+max pool 2×2                       32 × 32 × 64
+        |
+        v
+-------- block 3, 128 filters -------
+convolution 3×3, 128 filters       32 × 32 × 128
+batch normalisation
+ReLU
+convolution 3×3, 128 filters       32 × 32 × 128
+batch normalisation
+ReLU
+max pool 2×2                       16 × 16 × 128
+        |
+        v
+-------- block 4, 256 filters -------
+convolution 3×3, 256 filters       16 × 16 × 256
+batch normalisation
+ReLU
+convolution 3×3, 256 filters       16 × 16 × 256
+batch normalisation
+ReLU
+max pool 2×2                       8 × 8 × 256
+        |
+        v
+average each of the 256 maps       256 numbers
+        |
+        v
+dropout, drop chance 0.4          training only
+dense layer, 256 units
+ReLU
+dropout, drop chance 0.3          training only
+dense layer, one unit per class    no ReLU
+        |
+        v
+one raw score per symbol class
+```
+
+The convolution looks at a three-by-three neighbourhood and writes a new value at every pixel. The step is one pixel and the edges are padded, so height and width stay the same. It has no bias of its own. Batch normalisation comes next and is allowed to shift and rescale each filter, using the current batch to recentre the values. ReLU then sets every negative number to zero and leaves every positive number alone. That break is what makes the second convolution useful. Two convolutions with nothing between them would collapse into one. The second convolution, batch normalisation, and ReLU repeat at the same size. Max pooling then keeps the larger value in each two-by-two neighbourhood and steps by two pixels, so height and width are both halved.
+
+After the fourth block the picture is 8 by 8 with 256 filters. Averaging each filter across those 64 places leaves one number per filter. Position inside that small map is discarded. What remains is how strongly each pattern fired.
+
+Dropout runs only in training. It sets a random share of the numbers to zero on each step, a different share every time, so the next layer cannot depend on one particular unit. At scoring time every number is used. The dense layer of 256 units connects every incoming number to every unit, and ReLU is applied again. The last dense layer has one unit for each symbol class and no ReLU. Its outputs are raw scores. The loss turns those scores into class probabilities. The reported class is the unit with the largest score.
+
+On a GPU the convolutions may run in 16-bit precision. The last layer stays in 32-bit precision so those scores are not rounded away.
+
+The setup around this stack, for the 15-epoch Kaggle fit, is as follows. Mixup blends each training batch with a reversed copy of itself before any of the layers above see it. Geometry and degradation then run inside the network, and only on the training path. Validation crops are inverted, padded to 128 by 128, and scored with those layers switched off. The batch size is 32. Classes are weighted so a rarer symbol still pulls on the loss. The optimiser is AdamW with weight decay 0.0001. The loss is categorical cross-entropy on the raw scores, with label smoothing 0.1. The learning rate rises to 0.001 over the first 5 epochs and then falls to zero on a cosine curve over the rest of the 15 epochs. Accuracy and top-3 accuracy are the recorded metrics. The weights kept as the best model are the ones with the highest validation accuracy.
+
+### Side view
+
+The same network across the page. Each column is one stage, in the order a crop passes through them. The line under the names is the main operation of that stage, the two lines below it are what repeats inside the four blocks, and the last line is the size that leaves the column.
+
+```
+input        -> augment      -> scale        -> block 1      -> block 2      -> block 3      -> block 4      -> average      -> head         -> scores
+grayscale       train only      ÷ 255           conv 32 ×2      conv 64 ×2      conv 128 ×2     conv 256 ×2     over 8×8        dense 256       pick largest
+                                                BN + ReLU       BN + ReLU       BN + ReLU       BN + ReLU                       dropout
+                                                pool 2×2        pool 2×2        pool 2×2        pool 2×2
+128×128×1       128×128×1       128×128×1       64×64×32        32×32×64        16×16×128       8×8×256         256             256             per class
+```
+
+`conv 32 ×2` means the three-by-three convolution, batch normalisation and ReLU run twice at 32 filters before the pooling step. The augment column is skipped when a crop is scored. Each block halves the height and width and doubles the depth, so the picture goes from 128 pixels and 1 channel to 8 pixels and 256 channels; the average then drops position and leaves 256 numbers.
