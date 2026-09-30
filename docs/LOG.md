@@ -26,6 +26,7 @@ One line per change. Newest at the bottom. Do not copy transcripts here.
 - 2026-09-30 — Crop lookup no longer uses the first `images/train` (that is the sheet set). It requires `manifest.jsonl` under `sld-component-dataset/component-symbols`.
 - 2026-09-30 — Do not edit `SLD Training/Results/` notebooks. The notebook to change is `notebooks/kaggle-sld-pipeline.ipynb`. Keep it under Kaggle's 1 MB upload limit; put logic in `.py` files.
 - 2026-09-30 — Cleared saved outputs from `notebooks/kaggle-sld-pipeline.ipynb` (1.58 MB → 37 KB). The size was embedded run images, not source.
+- 2026-09-30 — Component `train.py` prints one epoch progress line (`val_accuracy` only). Keras step metrics and TensorFlow startup logs are off. Notebook unchanged.
 - 2026-09-30 — `kaggle-sld-pipeline.ipynb` (Stage B): new cell after the test-split scoring draws each test sheet with every symbol boxed and tagged "class conf" (`*` = classifier overrode detector), saved to `outputs/labelled_test/`. Not yet run on Kaggle.
 - 2026-09-30 — Stage A `train.py`: `StepBar` tqdm callback (one in-place bar per epoch over its steps, verbose=0); notebook `sh_live` now streams bytes so \r redraws work.
 - 2026-09-30 — `src/kaggle_runner/`: run notebooks on Kaggle GPU from local via Kaggle API (`run.py <job>`, jobs in `jobs.json`, creds in root `.env`, git-ignored). Needs component-crops dataset slug filled in.

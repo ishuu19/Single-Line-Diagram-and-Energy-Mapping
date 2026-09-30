@@ -1,6 +1,9 @@
 import argparse
 import json
+import os
 import sys
+
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
 import tensorflow as tf
 
@@ -13,6 +16,7 @@ from model import build_model, compile_model
 
 
 def setup():
+    tf.get_logger().setLevel("ERROR")
     tf.keras.utils.set_random_seed(SEED)
     if tf.config.list_physical_devices("GPU"):
         tf.keras.mixed_precision.set_global_policy("mixed_float16")
@@ -43,24 +47,38 @@ def load_hp(path):
     return {**DEFAULT_HP, **json.loads(path.read_text())} if path else DEFAULT_HP
 
 
-class StepBar(tf.keras.callbacks.Callback):
-    """One tqdm bar per epoch over its training steps (redraws in place, unlike Keras's bar when piped)."""
+class EpochBar(tf.keras.callbacks.Callback):
+    """One bar for the whole run, one new line per epoch.
 
-    def on_epoch_begin(self, epoch, logs=None):
+    Forced on when stdout is a pipe (the notebook captures train.py). The line
+    contains val_accuracy so the notebook's filter keeps it, and nothing else.
+    """
+
+    def on_train_begin(self, logs=None):
         from tqdm.auto import tqdm
-        self.bar = tqdm(total=self.params.get("steps"), desc=f"Epoch {epoch + 1}/{self.params['epochs']}", unit="step", dynamic_ncols=True, file=sys.stdout)
-
-    def on_train_batch_end(self, batch, logs=None):
-        self.bar.update(1)
-        self.bar.set_postfix(loss=f"{logs['loss']:.4f}", acc=f"{logs['accuracy']:.4f}")
+        self.bar = tqdm(
+            total=self.params["epochs"],
+            desc="train",
+            unit="epoch",
+            file=sys.stdout,
+            disable=False,
+            dynamic_ncols=False,
+            mininterval=0,
+            bar_format="{desc} {percentage:3.0f}%|{bar}| {n}/{total} [{elapsed}<{remaining}] {postfix}",
+        )
 
     def on_epoch_end(self, epoch, logs=None):
-        self.bar.set_postfix({k: f"{v:.4f}" for k, v in logs.items() if k in ("loss", "accuracy", "val_loss", "val_accuracy")})
+        acc = (logs or {}).get("val_accuracy")
+        if acc is not None:
+            self.bar.set_postfix_str(f"val_accuracy={acc:.4f}", refresh=False)
+        self.bar.update(1)
+
+    def on_train_end(self, logs=None):
         self.bar.close()
 
 
 def fit(model, train_ds, val_ds, weights, epochs, tag):
-    return model.fit(train_ds, validation_data=val_ds, epochs=epochs, class_weight=weights, callbacks=callbacks(tag) + [StepBar()], verbose=0)
+    return model.fit(train_ds, validation_data=val_ds, epochs=epochs, class_weight=weights, callbacks=callbacks(tag) + [EpochBar()], verbose=0)
 
 
 def train(hp, backbone=None, epochs=EPOCHS):
