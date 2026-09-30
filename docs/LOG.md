@@ -22,3 +22,4 @@ One line per change. Newest at the bottom. Do not copy transcripts here.
 - 2026-09-28 — Progress report `docs/Progress-Report-ESHAN-Anayed-Hossain.docx` (ESHAN Anayed Hossain, 23202807): data, method, 21% → 71% → 92% symbol accuracy, next step full-sheet graph.
 - 2026-09-30 — Rebuilt `Data/sld-sheets/` from every synthetic plant that has `plant.png` and `graph.json` (9,157 sheets, 7,775/892/490, 23 classes). `PLANT-01`…`PLANT-10` skipped (no drawing on disk). Zip: `Data/sld-sheets.zip` (~805 MB, gitignored), top folder `sld-sheets/`.
 - 2026-09-30 — `kaggle-sld-pipeline.ipynb` (Stage B): new cell after the test-split scoring draws each test sheet with every symbol boxed and tagged "class conf" (`*` = classifier overrode detector), saved to `outputs/labelled_test/`. Not yet run on Kaggle.
+- 2026-09-30 — Stage A `train.py`: `StepBar` tqdm callback (one in-place bar per epoch over its steps, verbose=0); notebook `sh_live` now streams bytes so \r redraws work.

@@ -1,5 +1,6 @@
 import argparse
 import json
+import sys
 
 import tensorflow as tf
 
@@ -42,8 +43,24 @@ def load_hp(path):
     return {**DEFAULT_HP, **json.loads(path.read_text())} if path else DEFAULT_HP
 
 
+class StepBar(tf.keras.callbacks.Callback):
+    """One tqdm bar per epoch over its training steps (redraws in place, unlike Keras's bar when piped)."""
+
+    def on_epoch_begin(self, epoch, logs=None):
+        from tqdm.auto import tqdm
+        self.bar = tqdm(total=self.params.get("steps"), desc=f"Epoch {epoch + 1}/{self.params['epochs']}", unit="step", dynamic_ncols=True, file=sys.stdout)
+
+    def on_train_batch_end(self, batch, logs=None):
+        self.bar.update(1)
+        self.bar.set_postfix(loss=f"{logs['loss']:.4f}", acc=f"{logs['accuracy']:.4f}")
+
+    def on_epoch_end(self, epoch, logs=None):
+        self.bar.set_postfix({k: f"{v:.4f}" for k, v in logs.items() if k in ("loss", "accuracy", "val_loss", "val_accuracy")})
+        self.bar.close()
+
+
 def fit(model, train_ds, val_ds, weights, epochs, tag):
-    return model.fit(train_ds, validation_data=val_ds, epochs=epochs, class_weight=weights, callbacks=callbacks(tag), verbose=2)
+    return model.fit(train_ds, validation_data=val_ds, epochs=epochs, class_weight=weights, callbacks=callbacks(tag) + [StepBar()], verbose=0)
 
 
 def train(hp, backbone=None, epochs=EPOCHS):
