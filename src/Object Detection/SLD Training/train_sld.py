@@ -62,7 +62,8 @@ def resolve_data_yaml(data_yaml: Path, out: Path) -> Path:
 
 
 def train(data_yaml=DATA_YAML, model=MODEL_WEIGHTS, epochs=EPOCHS, imgsz=IMG_SIZE, batch=BATCH, name="sld", project=None,
-          translate=0.1, shear=0.0, perspective=0.0, mixup=0.0, copy_paste=0.0):
+          translate=0.2, shear=5.0, perspective=0.001, mixup=0.15, copy_paste=0.1,
+          degrees=180.0, fliplr=0.5, flipud=0.5, scale=0.5):
     from ultralytics import YOLO
 
     quiet_duplicate_logs()
@@ -72,8 +73,9 @@ def train(data_yaml=DATA_YAML, model=MODEL_WEIGHTS, epochs=EPOCHS, imgsz=IMG_SIZ
     net = YOLO(model)
     net.train(
         data=str(data), epochs=epochs, imgsz=imgsz, batch=batch, project=str(project), name=name, exist_ok=True,
-        # sheets are axis-aligned drawings: no flips / rotations, mild scale jitter, mosaic kept for small symbols
-        fliplr=0.0, flipud=0.0, degrees=0.0, scale=0.2, mosaic=1.0, close_mosaic=10, hsv_h=0.0, hsv_s=0.0, hsv_v=0.2,
+        # full geometric augmentation, including rotation, plus colour and mosaic mixes
+        fliplr=fliplr, flipud=flipud, degrees=degrees, scale=scale, mosaic=1.0, close_mosaic=10,
+        hsv_h=0.015, hsv_s=0.3, hsv_v=0.3,
         translate=translate, shear=shear, perspective=perspective, mixup=mixup, copy_paste=copy_paste,
         plots=True, verbose=False,
     )

@@ -30,7 +30,7 @@ Synthetic corpus exists and is the development set. Real sheets are the untouche
 
 ## Next
 
-Upload the 100k `Data/component-symbols/` to Kaggle, retrain with `EPOCHS = 30` (the 36% → 72% printed-test results argue for 180° and wider scale/stroke augmentation at the same time), re-score `--split printed-test` on the 198-crop set. Kaggle run on the 64-class set reached 72% printed-test. CGHD stays as the harder, hand-drawn check. Full-sheet labels are in `Data/sld-sheets/` and `Data/sld-sheets.zip`. Run the pipeline on a Kaggle GPU from this PC with `python src/kaggle_runner/run.py sld-pipeline` (attaches `sld-component-dataset`, `sld-full-sheets`, `sld-computer-made-test`). Real sheets stay held out.
+Upload the 100k `Data/component-symbols/` to Kaggle, retrain with `EPOCHS = 30` (the 36% → 72% printed-test results argue for 180° and wider scale/stroke augmentation at the same time), re-score `--split printed-test` on the 198-crop set. Kaggle run on the 64-class set reached 72% printed-test. CGHD stays as the harder, hand-drawn check. Full-sheet labels are in `Data/sld-sheets/` and `Data/sld-sheets.zip`. Stage A on Kaggle loads the committed `Component Training/models/custom_best.keras` (same file as `F:/sld_pipeline_artifacts.zip`; val 0.998 / printed-test 0.924) and does not retrain. Stage B trains with rotation and the rest of the YOLO augmentations. Run with `python src/kaggle_runner/run.py sld-pipeline`. Real sheets stay held out.
 
 ## Conventions that affect results
 
