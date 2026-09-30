@@ -61,6 +61,37 @@ def resolve_data_yaml(data_yaml: Path, out: Path) -> Path:
     return out
 
 
+def _epoch_report(net):
+    """One line per epoch: time, GPU memory, losses and validation scores. The bar itself stays ultralytics' own."""
+    state = {}
+
+    def on_train_epoch_end(trainer):
+        try:
+            import torch
+            if torch.cuda.is_available():
+                state["gpu"] = torch.cuda.max_memory_allocated() / 1024 ** 3
+                state["gpu_total"] = torch.cuda.get_device_properties(0).total_memory / 1024 ** 3
+        except Exception:
+            state["gpu"] = None
+
+    def on_fit_epoch_end(trainer):
+        bits = []
+        losses = trainer.label_loss_items(trainer.tloss) if trainer.tloss else {}
+        for key, value in {**losses, **(trainer.metrics or {})}.items():
+            try:
+                bits.append(f"{str(key).split('/')[-1]}={float(value):.4f}")
+            except (TypeError, ValueError):
+                continue
+        gpu = ""
+        if state.get("gpu") is not None:
+            gpu = f"  gpu={state['gpu']:.2f}/{state['gpu_total']:.1f}GB"
+        elapsed = trainer.epoch_time or 0
+        print(f"epoch {trainer.epoch + 1}/{trainer.epochs}  time={elapsed:.1f}s{gpu}  " + "  ".join(bits), flush=True)
+
+    net.add_callback("on_train_epoch_end", on_train_epoch_end)
+    net.add_callback("on_fit_epoch_end", on_fit_epoch_end)
+
+
 def train(data_yaml=DATA_YAML, model=MODEL_WEIGHTS, epochs=EPOCHS, imgsz=IMG_SIZE, batch=BATCH, name="sld", project=None,
           translate=0.2, shear=5.0, perspective=0.001, mixup=0.15, copy_paste=0.1,
           degrees=180.0, fliplr=0.5, flipud=0.5, scale=0.5):
@@ -71,13 +102,14 @@ def train(data_yaml=DATA_YAML, model=MODEL_WEIGHTS, epochs=EPOCHS, imgsz=IMG_SIZ
     project.mkdir(parents=True, exist_ok=True)
     data = resolve_data_yaml(data_yaml, project / "data.yaml")
     net = YOLO(model)
+    _epoch_report(net)
     net.train(
         data=str(data), epochs=epochs, imgsz=imgsz, batch=batch, project=str(project), name=name, exist_ok=True,
         # full geometric augmentation, including rotation, plus colour and mosaic mixes
         fliplr=fliplr, flipud=flipud, degrees=degrees, scale=scale, mosaic=1.0, close_mosaic=10,
         hsv_h=0.015, hsv_s=0.3, hsv_v=0.3,
         translate=translate, shear=shear, perspective=perspective, mixup=mixup, copy_paste=copy_paste,
-        plots=True, verbose=False,
+        plots=True, verbose=True,
     )
     best = project / name / "weights" / "best.pt"
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
