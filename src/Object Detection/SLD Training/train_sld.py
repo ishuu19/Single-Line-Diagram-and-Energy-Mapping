@@ -26,7 +26,8 @@ def resolve_data_yaml(data_yaml: Path, out: Path) -> Path:
     return out
 
 
-def train(data_yaml=DATA_YAML, model=MODEL_WEIGHTS, epochs=EPOCHS, imgsz=IMG_SIZE, batch=BATCH, name="sld", project=None):
+def train(data_yaml=DATA_YAML, model=MODEL_WEIGHTS, epochs=EPOCHS, imgsz=IMG_SIZE, batch=BATCH, name="sld", project=None,
+          translate=0.1, shear=0.0, perspective=0.0, mixup=0.0, copy_paste=0.0):
     from ultralytics import YOLO
 
     project = Path(project or RUN_DIR / "runs")
@@ -37,6 +38,7 @@ def train(data_yaml=DATA_YAML, model=MODEL_WEIGHTS, epochs=EPOCHS, imgsz=IMG_SIZ
         data=str(data), epochs=epochs, imgsz=imgsz, batch=batch, project=str(project), name=name, exist_ok=True,
         # sheets are axis-aligned drawings: no flips / rotations, mild scale jitter, mosaic kept for small symbols
         fliplr=0.0, flipud=0.0, degrees=0.0, scale=0.2, mosaic=1.0, close_mosaic=10, hsv_h=0.0, hsv_s=0.0, hsv_v=0.2,
+        translate=translate, shear=shear, perspective=perspective, mixup=mixup, copy_paste=copy_paste,
         plots=True, verbose=False,
     )
     best = project / name / "weights" / "best.pt"
