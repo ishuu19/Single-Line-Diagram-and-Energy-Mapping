@@ -43,7 +43,7 @@ def load_hp(path):
 
 
 def fit(model, train_ds, val_ds, weights, epochs, tag):
-    return model.fit(train_ds, validation_data=val_ds, epochs=epochs, class_weight=weights, callbacks=callbacks(tag))
+    return model.fit(train_ds, validation_data=val_ds, epochs=epochs, class_weight=weights, callbacks=callbacks(tag), verbose=2)
 
 
 def train(hp, backbone=None, epochs=EPOCHS):
