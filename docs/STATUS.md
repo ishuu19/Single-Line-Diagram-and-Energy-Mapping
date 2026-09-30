@@ -1,6 +1,6 @@
 # Status
 
-Updated: 2026-09-27
+Updated: 2026-09-30
 
 ## Now
 
@@ -20,7 +20,7 @@ Synthetic corpus exists and is the development set. Real sheets are the untouche
 - External **test-only** crops: CGHD → `component-symbols-test/` via `build_cghd_test_crops.py` + `cghd_to_sld.json`. 16 crops on disk from partial HF cache; ~1,083 mappable when all CGHD images are available. `normalise_test_crops.py` maps them to the Schematex domain; `evaluate.py --split cghd-test` scores them (`--out-suffix _raw` for the un-normalised pass). On the 16 crops `notebook_best` scores 0% raw and 0% clean / 6% degraded normalised: the domain gap is not closed.
 
 - Progress report (4 pages): `docs/Progress-Report-ESHAN-Anayed-Hossain.docx`. Symbol-stage narrative as stated: 14 types / 1,000 crops / 21%, then 46 / 10,000 / 71%, then 64 / 100,000 / 92%. Next step in the report is the full-sheet machine-readable graph.
-- Full-sheet stage started in `src/Object Detection/SLD Training/`: `build_sld_dataset.py` → `Data/sld-sheets/` (YOLO boxes for 20 symbol types + junction + text, 85/10/5 split, GT graphs with the SVG→PNG y offset of 12 units and drawn bus bars). `wires.py` traces wires from image + boxes (AITEE-style: mask, bridge gaps, nets, MST edges, meter→CT convention). Oracle-box score on 12 sheets: edge P 0.97 / R 0.80, type acc 1.0, net Jaccard 0.89. Kaggle runner `notebooks/kaggle-sld-pipeline.ipynb` trains both stages (classifier then YOLOv8s sheet detector, 1,277/160/71 train/val/test) and re-labels detected crops with the classifier (`reclassify.py`); test-split result (71 sheets, detector + classifier): node recall 0.95, edge precision 0.86, edge recall 0.72, edge type acc 1.0, net Jaccard 0.94. Trained weights + metrics saved as `SLD Training/Results/sld_pipeline_artifacts.zip` (gitignored); walkthrough in `SLD Training/Results/result.md`. `notebooks/kaggle-sld-inference.ipynb` loads just the final saved models from that zip (no training) and scores/visualises them on 10 test sheets.
+- Full-sheet stage started in `src/Object Detection/SLD Training/`: `build_sld_dataset.py` → `Data/sld-sheets/` (rebuilt 2026-09-30: 9,157 sheets with png+graph, 7,775/892/490 train/val/test, 21 symbol types + junction + text; `PLANT-01`…`PLANT-10` still have no drawing on disk). YOLO boxes, GT graphs (SVG→PNG y offset of 12 units, drawn bus bars). Zip for Kaggle: `Data/sld-sheets.zip` (~805 MB, gitignored), archive root `sld-sheets/`. `wires.py` traces wires from image + boxes (AITEE-style: mask, bridge gaps, nets, MST edges, meter→CT convention). Oracle-box score on 12 sheets: edge P 0.97 / R 0.80, type acc 1.0, net Jaccard 0.89. Kaggle runner `notebooks/kaggle-sld-pipeline.ipynb` trains both stages (classifier then YOLOv8s sheet detector, 1,277/160/71 train/val/test) and re-labels detected crops with the classifier (`reclassify.py`); test-split result (71 sheets, detector + classifier): node recall 0.95, edge precision 0.86, edge recall 0.72, edge type acc 1.0, net Jaccard 0.94. Trained weights + metrics saved as `SLD Training/Results/sld_pipeline_artifacts.zip` (gitignored); walkthrough in `SLD Training/Results/result.md`. `notebooks/kaggle-sld-inference.ipynb` loads just the final saved models from that zip (no training) and scores/visualises them on 10 test sheets.
 
 ## Not started
 
@@ -30,7 +30,7 @@ Synthetic corpus exists and is the development set. Real sheets are the untouche
 
 ## Next
 
-Upload the 100k `Data/component-symbols/` to Kaggle, retrain with `EPOCHS = 30` (the 36% → 72% printed-test results argue for 180° and wider scale/stroke augmentation at the same time), re-score `--split printed-test` on the 198-crop set. Kaggle run on the 64-class set reached 72% printed-test. CGHD stays as the harder, hand-drawn check. Then convert synthetic `graph.json` boxes to YOLO labels for full sheets. Real sheets stay held out.
+Upload the 100k `Data/component-symbols/` to Kaggle, retrain with `EPOCHS = 30` (the 36% → 72% printed-test results argue for 180° and wider scale/stroke augmentation at the same time), re-score `--split printed-test` on the 198-crop set. Kaggle run on the 64-class set reached 72% printed-test. CGHD stays as the harder, hand-drawn check. Full-sheet labels are in `Data/sld-sheets/` and `Data/sld-sheets.zip`. Real sheets stay held out.
 
 ## Conventions that affect results
 
