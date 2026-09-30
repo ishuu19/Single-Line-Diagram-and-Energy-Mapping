@@ -23,6 +23,9 @@ One line per change. Newest at the bottom. Do not copy transcripts here.
 - 2026-09-30 — Rebuilt `Data/sld-sheets/` from every synthetic plant that has `plant.png` and `graph.json` (9,157 sheets, 7,775/892/490, 23 classes). `PLANT-01`…`PLANT-10` skipped (no drawing on disk). Zip: `Data/sld-sheets.zip` (~805 MB, gitignored), top folder `sld-sheets/`.
 - 2026-09-30 — `src/kaggle_runner` job `sld-pipeline` attaches `anayedeshan/sld-component-dataset`, `sld-full-sheets`, and `sld-computer-made-test`. Notebook resolves those mounts instead of the old `sld-diagram-and-label-data` path. Creds read from `src/kaggle_runner/.env`.
 - 2026-09-30 — YOLO label scan no longer prints one line per image for duplicate boxes. `train_sld.quiet_duplicate_logs` keeps the progress bar and one count per split.
+- 2026-09-30 — Crop lookup no longer uses the first `images/train` (that is the sheet set). It requires `manifest.jsonl` under `sld-component-dataset/component-symbols`.
+- 2026-09-30 — Do not edit `SLD Training/Results/` notebooks. The notebook to change is `notebooks/kaggle-sld-pipeline.ipynb`. Keep it under Kaggle's 1 MB upload limit; put logic in `.py` files.
+- 2026-09-30 — Cleared saved outputs from `notebooks/kaggle-sld-pipeline.ipynb` (1.58 MB → 37 KB). The size was embedded run images, not source.
 - 2026-09-30 — `kaggle-sld-pipeline.ipynb` (Stage B): new cell after the test-split scoring draws each test sheet with every symbol boxed and tagged "class conf" (`*` = classifier overrode detector), saved to `outputs/labelled_test/`. Not yet run on Kaggle.
 - 2026-09-30 — Stage A `train.py`: `StepBar` tqdm callback (one in-place bar per epoch over its steps, verbose=0); notebook `sh_live` now streams bytes so \r redraws work.
 - 2026-09-30 — `src/kaggle_runner/`: run notebooks on Kaggle GPU from local via Kaggle API (`run.py <job>`, jobs in `jobs.json`, creds in root `.env`, git-ignored). Needs component-crops dataset slug filled in.
