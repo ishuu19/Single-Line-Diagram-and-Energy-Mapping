@@ -18,6 +18,41 @@ import yaml
 from config import BATCH, DATA_YAML, EPOCHS, IMG_SIZE, MODEL_DIR, MODEL_WEIGHTS, RUN_DIR
 
 
+def quiet_duplicate_logs():
+    """Ultralytics logs one line per image when identical boxes are dropped. Keep a count instead."""
+    from ultralytics.utils import LOGGER
+
+    if getattr(LOGGER, "_sld_quiet", False):
+        return
+    original = LOGGER.info
+
+    def info(msg, *args, **kwargs):
+        text = msg % args if args and isinstance(msg, str) else msg
+        if not isinstance(text, str) or "duplicate labels removed" not in text:
+            return original(msg, *args, **kwargs)
+        images = boxes = 0
+        kept = []
+        split = "scan"
+        for line in text.splitlines():
+            if "duplicate labels removed" not in line:
+                if line.strip():
+                    kept.append(line)
+                continue
+            images += 1
+            plain = "".join(part.split("m", 1)[-1] for part in line.split("\x1b"))
+            # "train: /path/img.png: 5 duplicate labels removed"
+            split = plain.split(":", 1)[0].strip() or split
+            tail = plain.rsplit(":", 1)[-1].strip().split()
+            if tail and tail[0].isdigit():
+                boxes += int(tail[0])
+        original(f"{split}: {images} images, {boxes} duplicate labels removed")
+        if kept:
+            original("\n".join(kept))
+
+    LOGGER.info = info
+    LOGGER._sld_quiet = True
+
+
 def resolve_data_yaml(data_yaml: Path, out: Path) -> Path:
     """data.yaml stores `path: .`; write a copy with the absolute dataset folder so ultralytics finds the images anywhere."""
     cfg = yaml.safe_load(Path(data_yaml).read_text())
@@ -30,6 +65,7 @@ def train(data_yaml=DATA_YAML, model=MODEL_WEIGHTS, epochs=EPOCHS, imgsz=IMG_SIZ
           translate=0.1, shear=0.0, perspective=0.0, mixup=0.0, copy_paste=0.0):
     from ultralytics import YOLO
 
+    quiet_duplicate_logs()
     project = Path(project or RUN_DIR / "runs")
     project.mkdir(parents=True, exist_ok=True)
     data = resolve_data_yaml(data_yaml, project / "data.yaml")
