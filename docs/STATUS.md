@@ -1,6 +1,6 @@
 # Status
 
-Updated: 2026-09-30
+Updated: 2026-10-01
 
 ## Now
 
@@ -21,6 +21,8 @@ Synthetic corpus exists and is the development set. Real sheets are the untouche
 
 - Progress report (4 pages): `docs/Progress-Report-ESHAN-Anayed-Hossain.docx`. Symbol-stage narrative as stated: 14 types / 1,000 crops / 21%, then 46 / 10,000 / 71%, then 64 / 100,000 / 92%. Next step in the report is the full-sheet machine-readable graph.
 - Full-sheet stage started in `src/Object Detection/SLD Training/`: `build_sld_dataset.py` → `Data/sld-sheets/` (rebuilt 2026-09-30: 9,157 sheets with png+graph, 7,775/892/490 train/val/test, 21 symbol types + junction + text; `PLANT-01`…`PLANT-10` still have no drawing on disk). YOLO boxes, GT graphs (SVG→PNG y offset of 12 units, drawn bus bars). Zip for Kaggle: `Data/sld-sheets.zip` (~805 MB, gitignored), archive root `sld-sheets/`. `wires.py` traces wires from image + boxes (AITEE-style: mask, bridge gaps, nets, MST edges, meter→CT convention). Oracle-box score on 12 sheets: edge P 0.97 / R 0.80, type acc 1.0, net Jaccard 0.89. Kaggle runner `notebooks/kaggle-sld-pipeline.ipynb` trains both stages (classifier then YOLOv8s sheet detector, 1,277/160/71 train/val/test) and re-labels detected crops with the classifier (`reclassify.py`); test-split result (71 sheets, detector + classifier): node recall 0.95, edge precision 0.86, edge recall 0.72, edge type acc 1.0, net Jaccard 0.94. Trained weights + metrics saved as `SLD Training/Results/sld_pipeline_artifacts.zip` (gitignored); walkthrough in `SLD Training/Results/result.md`. `notebooks/kaggle-sld-inference.ipynb` loads just the final saved models from that zip (no training) and scores/visualises them on 10 test sheets.
+
+- **v2 corpus (2026-10-01):** all `GEN-*` telemetry cut to the first **5 days** (`_tools/truncate_telemetry.mjs`; core `PLANT-*` still 30 d; `GEN-2542` has no readable telemetry). 1,471 new plants `GEN-LR-####` (left-to-right) and `GEN-RL-####` (right-to-left), 5-day CSVs, drawn natively by `_tools/horizontal.mjs` (Schematex is top-down only, so its layout is re-composed: symbols lie along the flow, text upright; not a rotated image). `graph.json` has `image.direction` (TB/LR/RL). Generate with `node generate.mjs --horizontal --gen-range a-b --days 5`. Sheets: `Data/sld-sheets-v2/` (10,628 sheets: 9,010/1,031/587 train/val/test, 23 classes) + `Data/sld-sheets-v2.zip` (gitignored, archive root `sld-sheets-v2/`). Stage B notebook/job now attach `anayedeshan/sld-sheets-v2` (not yet uploaded) and pass an explicit `AUG` dict. `wires.py` not yet re-scored on horizontal sheets.
 
 ## Not started
 

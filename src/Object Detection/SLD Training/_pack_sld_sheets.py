@@ -13,7 +13,7 @@ from pathlib import Path
 import build_sld_dataset as b
 from config import JUNCTION_CLASS, SYMBOL_ORDER, SYNTHETIC_DIR, TEXT_CLASS
 
-DEST = Path(r"C:\Users\User\FYP\sld-sheets")
+DEST = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(r"C:\Users\User\FYP\sld-sheets")   # e.g. Data/sld-sheets-v2
 WORKERS = 8
 
 

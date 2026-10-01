@@ -8,6 +8,7 @@ Open the row for the task. Do not explore siblings.
 | Why a choice was made | `docs/LOG.md` (newest at bottom) |
 | Research questions, metrics, stages | `plan.md` — only for design or write-up |
 | Corpus layout, graph.json fields, telemetry rules | `Synthetic Data/README.md`, then `plan.md` §9.2 if they disagree |
+| Horizontal (LR/RL) plants | `_tools/horizontal.mjs`, `plants.horizontal.mjs`, `generate.mjs --horizontal` |
 | Regenerate or verify plants | `Synthetic Data/_tools/generate.mjs`, `verify.mjs`. Commands in `Synthetic Data/AGENTS.md` |
 | Plant specs | `_tools/plants.mjs` (core), `_tools/plants.generated.mjs` (bulk) |
 | Graph + telemetry construction | `_tools/build.mjs`, `_tools/series.mjs` |
