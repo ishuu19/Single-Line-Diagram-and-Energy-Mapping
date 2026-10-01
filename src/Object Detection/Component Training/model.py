@@ -1,7 +1,7 @@
 import tensorflow as tf
 from tensorflow.keras import layers, models
 
-from config import BLUR, CONTRAST, DEFAULT_HP, DEGRADE_PROB, ERASE, IMG_SIZE, NOISE, ROTATION, TRANSLATION, ZOOM
+from config import BLUR, CONTRAST, DEFAULT_HP, DEGRADE_PROB, ERASE, HALF_TURN, IMG_SIZE, NOISE, ROTATION, TRANSLATION, ZOOM
 
 
 def _per_sample(x, prob):
@@ -52,9 +52,28 @@ class RandomDegrade(layers.Layer):
         return {**super().get_config(), "noise": self.noise, "blur": self.blur, "erase": self.erase, "prob": self.prob}
 
 
+@tf.keras.utils.register_keras_serializable(package="component_training")
+class RandomHalfTurn(layers.Layer):
+    """Turns a random share of the batch by 180 degrees (training only). Crops are generated at 0/90/270 only."""
+
+    def __init__(self, prob=HALF_TURN, **kwargs):
+        kwargs.setdefault("dtype", "float32")
+        super().__init__(**kwargs)
+        self.prob = prob
+
+    def call(self, x, training=None):
+        if not training:
+            return x
+        return tf.where(_per_sample(x, self.prob), tf.reverse(x, [1, 2]), x)
+
+    def get_config(self):
+        return {**super().get_config(), "prob": self.prob}
+
+
 def build_geometric():
     fill = dict(fill_mode="constant", fill_value=0.0)  # background is 0 after inversion
     return models.Sequential([
+        RandomHalfTurn(),
         layers.RandomRotation(ROTATION, **fill),
         layers.RandomZoom(ZOOM, **fill),
         layers.RandomTranslation(TRANSLATION, TRANSLATION, **fill),

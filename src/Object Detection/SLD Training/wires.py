@@ -282,9 +282,13 @@ def trace(image, detections):
             else:
                 mask[g0:g1 + 1, line] = True
         sl = ndi.find_objects(mask.astype(np.int8))[0]
-        if sl is None or max(sl[0].stop - sl[0].start, sl[1].stop - sl[1].start) < MIN_WIRE_PX:
+        if sl is None:
             continue
-        masks.append((mask, blobs, _touching(mask, symbols, mask.shape)))
+        members = _touching(mask, symbols, mask.shape)
+        # a short stub is a stray glyph unless it joins two symbols (a bus-tie sits ~9 px from its bus)
+        if max(sl[0].stop - sl[0].start, sl[1].stop - sl[1].start) < MIN_WIRE_PX and len(members) < 2:
+            continue
+        masks.append((mask, blobs, members))
 
     # symbols that no wire reaches at the normal radius (dashed link ending in a gap): second look, wider
     reached = {k for _, _, members in masks for k in members}

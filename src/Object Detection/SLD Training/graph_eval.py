@@ -24,13 +24,18 @@ from sld_data import box_iou, gt_detections, image_path, load_classes, load_grap
 from wires import trace
 
 
-def match_nodes(gt_nodes, pred_nodes, graph):
-    """gt index -> pred index. Boxes compared in pixels; bus uses the drawn bar when present."""
+def match_nodes(gt_nodes, pred_nodes, graph, typed=True):
+    """gt index -> pred index. Boxes compared in pixels; bus uses the drawn bar when present.
+
+    typed=True  : a prediction can only match a GT node of the same type (the original, strict rule).
+    typed=False : boxes alone decide (localisation); type agreement is then reported separately, so a
+                  correct box with a finer classifier label is not scored as a missed node.
+    """
     pairs = []
     for gi, n in enumerate(gt_nodes):
         gbox = to_px(n.get("bbox_draw", n["bbox"]), graph)
         for pi, p in enumerate(pred_nodes):
-            if p["type"] != n["type"]:
+            if typed and p["type"] != n["type"]:
                 continue
             iou = box_iou(gbox, p["bbox"])
             if iou >= MATCH_IOU:
@@ -58,9 +63,13 @@ def gt_nets(graph):
     return out
 
 
-def score_sheet(graph, pred):
-    """pred: {"symbols": [{type,bbox(px)}], "edges": [{a,b,relationship}], "nets": [{members}]}."""
-    m = match_nodes(graph["nodes"], pred["symbols"], graph)
+def score_sheet(graph, pred, typed=True):
+    """pred: {"symbols": [{type,bbox(px)}], "edges": [{a,b,relationship}], "nets": [{members}]}.
+
+    typed=False scores localisation only (see match_nodes) and adds `nodes_type_ok`, the matched
+    nodes whose type is also right."""
+    m = match_nodes(graph["nodes"], pred["symbols"], graph, typed=typed)
+    type_ok = sum(graph["nodes"][gi]["type"] == pred["symbols"][pi]["type"] for gi, pi in m.items())
     node_ids = [n["id"] for n in graph["nodes"]]
     pred_of = {node_ids[gi]: pi for gi, pi in m.items()}
 
@@ -86,7 +95,7 @@ def score_sheet(graph, pred):
         jac.append(best)
 
     return {
-        "nodes_gt": len(graph["nodes"]), "nodes_pred": len(pred["symbols"]), "nodes_matched": len(m),
+        "nodes_gt": len(graph["nodes"]), "nodes_pred": len(pred["symbols"]), "nodes_matched": len(m), "nodes_type_ok": type_ok,
         "edges_gt": len(graph["edges"]), "edges_pred": len(pred["edges"]), "edges_hit": edge_hit, "edge_type_hit": type_hit,
         "nets_gt": len(gnets), "net_jaccard": float(np.mean(jac)) if jac else 1.0,
     }
@@ -102,6 +111,7 @@ def summarise(rows):
         "sheets": len(rows),
         "node_precision": tot["nodes_matched"] / max(1, tot["nodes_pred"]),
         "node_recall": tot["nodes_matched"] / max(1, tot["nodes_gt"]),
+        "node_type_accuracy": tot["nodes_type_ok"] / max(1, tot["nodes_matched"]),
         "edge_precision": tot["edges_hit"] / max(1, tot["edges_pred"]),
         "edge_recall": tot["edges_hit"] / max(1, tot["edges_gt"]),
         "edge_type_accuracy": tot["edge_type_hit"] / max(1, tot["edges_hit"]),

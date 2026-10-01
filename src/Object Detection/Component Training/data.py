@@ -1,3 +1,4 @@
+import hashlib
 import json
 
 import numpy as np
@@ -38,17 +39,39 @@ def split_arrays(rows, split, class_names, data_dir=DATA_DIR):
     return paths, labels
 
 
-def validation_split(rows):
-    """`val` when the crop set has one; otherwise the held-out `test` split doubles as validation."""
-    return "val" if any(r["split"] == "val" for r in rows) else "test"
+VAL_FRACTION = 0.03   # share of `train` crops held out for early stopping when the manifest has no `val` split
+
+
+def _in_val(row):
+    """Stable per-file hash, so the carve-out never changes between runs and growing the set only adds crops."""
+    return int(hashlib.md5(row["file"].encode()).hexdigest()[:8], 16) / 0xFFFFFFFF < VAL_FRACTION
+
+
+def train_val_rows(rows):
+    """(train rows, validation rows). The manifest `test` split is never used here: it is reported, not tuned on."""
+    if any(r["split"] == "val" for r in rows):
+        return [r for r in rows if r["split"] == "train"], [r for r in rows if r["split"] == "val"]
+    train = [r for r in rows if r["split"] == "train"]
+    return [r for r in train if not _in_val(r)], [r for r in train if _in_val(r)]
+
+
+def _arrays(rows, class_names, data_dir=DATA_DIR):
+    class_to_id = {name: i for i, name in enumerate(class_names)}
+    rows = [r for r in rows if r["type"] in class_to_id]
+    return np.array([str(data_dir / r["file"]) for r in rows]), np.array([class_to_id[r["type"]] for r in rows])
 
 
 def load_arrays():
     rows = read_manifest()
     class_names = classifier_classes(rows)
-    train = split_arrays(rows, "train", class_names)
-    val = split_arrays(rows, validation_split(rows), class_names)
-    return train, val, class_names
+    train_rows, val_rows = train_val_rows(rows)
+    return _arrays(train_rows, class_names), _arrays(val_rows, class_names), class_names
+
+
+def load_test_dataset(class_names):
+    """The manifest `test` split (same drawing styles as train), for final reporting only."""
+    paths, labels = split_arrays(read_manifest(), "test", class_names)
+    return make_dataset(paths, labels, len(class_names), training=False)
 
 
 def _load_image(path, label):

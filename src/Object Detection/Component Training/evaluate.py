@@ -8,7 +8,7 @@ from sklearn.metrics import ConfusionMatrixDisplay, classification_report
 
 import model as _  # registers RandomDegrade for load_model
 from config import MODEL_DIR, OUTPUT_DIR, PRINTED_TEST_DATA_DIR, SEED, TEST_DATA_DIR, TTA_PASSES
-from data import load_datasets, load_external_test_dataset
+from data import load_datasets, load_external_test_dataset, load_test_dataset
 
 
 def predict(model, ds, mode="clean"):
@@ -38,9 +38,9 @@ def main():
     parser.add_argument("--model", default="custom", help="tag used by train.py, e.g. custom or efficientnetv2b0")
     parser.add_argument(
         "--split",
-        choices=("val", "cghd-test", "printed-test"),
+        choices=("val", "test", "cghd-test", "printed-test"),
         default="val",
-        help="val = Schematex val; cghd-test = component-symbols-test (CGHD hand-drawn); "
+        help="val = crops held out of train for early stopping; test = the manifest test split (reporting only); cghd-test = component-symbols-test (CGHD hand-drawn); "
         "printed-test = component-symbols-test-printed (held-out printed style)",
     )
     parser.add_argument("--out-suffix", default="", help="appended to output names, e.g. _raw for un-normalised test crops")
@@ -54,6 +54,8 @@ def main():
         "cghd-test": (TEST_DATA_DIR, "cghd_test", "run build_cghd_test_crops.py from Component Training"),
         "printed-test": (PRINTED_TEST_DATA_DIR, "printed_test", "run node components_test.mjs in Synthetic Data/_tools"),
     }
+    if args.split == "test":
+        eval_ds, split_tag = load_test_dataset(class_names), "test"
     if args.split in external:
         data_dir, split_tag, hint = external[args.split]
         eval_ds = load_external_test_dataset(class_names, data_dir)

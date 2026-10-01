@@ -68,7 +68,7 @@ def _crop(gray: np.ndarray, box, size=128):
     return tf.image.resize_with_pad(crop[..., None], size, size).numpy()
 
 
-def reclassify(image, detections, classifier, min_conf=MIN_CONF):
+def reclassify(image, detections, classifier, min_conf=MIN_CONF, batch_size=64):
     """Replace each symbol's `type` with the classifier's label when it is confident. Adds `type_detector`, `type_conf`."""
     import tensorflow as tf
     net, names = classifier
@@ -76,8 +76,11 @@ def reclassify(image, detections, classifier, min_conf=MIN_CONF):
     todo = [d for d in detections if d["type"] not in SKIP_TYPES]
     if not todo:
         return detections
-    batch = np.stack([_crop(gray, d["bbox"]) for d in todo])
-    probs = tf.nn.softmax(net(batch, training=False), -1).numpy()
+    # micro-batches: a dense sheet has hundreds of symbols and one forward pass over all of them can exhaust the GPU
+    probs = np.concatenate([
+        tf.nn.softmax(net(np.stack([_crop(gray, d["bbox"]) for d in todo[i:i + batch_size]]), training=False), -1).numpy()
+        for i in range(0, len(todo), batch_size)
+    ])
     for d, p in zip(todo, probs):
         k = int(p.argmax())
         d["type_detector"] = d["type"]

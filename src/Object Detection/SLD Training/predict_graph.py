@@ -35,8 +35,8 @@ def detect(model, image, classes, conf=CONF, imgsz=IMG_SIZE):
     return out
 
 
-def predict_sheet(model, image, classes, sheet_id=""):
-    dets = detect(model, image, classes)
+def predict_sheet(model, image, classes, sheet_id="", conf=CONF):
+    dets = detect(model, image, classes, conf=conf)
     result = trace(image, dets)
     result["detections"] = dets
     return result, to_graph_json(result, sheet_id)

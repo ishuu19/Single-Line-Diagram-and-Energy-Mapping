@@ -41,8 +41,9 @@ BACKBONES = ("efficientnetv2b0", "mobilenetv3small", "convnexttiny")
 
 # geometric: 0.03 of a turn is about ±11°; symbols already come in 0/90/180/270 so only jitter
 ROTATION = 0.03
-ZOOM = 0.1
+ZOOM = 0.2
 TRANSLATION = 0.08
+HALF_TURN = 0.25   # chance a crop is turned 180 deg (printed-test failures were mostly 180 deg symbols)
 CONTRAST = 0.3
 # scan degradation: stand-in for photographed / photocopied real sheets
 NOISE = 0.05

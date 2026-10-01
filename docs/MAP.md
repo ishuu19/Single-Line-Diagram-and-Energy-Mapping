@@ -18,7 +18,7 @@ Open the row for the task. Do not explore siblings.
 | Held-out printed test crops | `Synthetic Data/_tools/components_test.mjs` → `Data/component-symbols-test-printed/` (zip committed) |
 | Train / evaluate the crop classifier on Kaggle | `src/Object Detection/Component Training/notebooks/kaggle_component_training.ipynb`, then that folder's `README.md` |
 | Detector dataset choice | `docs/detection.md` |
-| Full-sheet detection + wire tracing → graph | `src/Object Detection/SLD Training/README.md`, then `wires.py`. Notebooks: `notebooks/kaggle-sld-stage-b.ipynb` (stage B only), `notebooks/kaggle-sld-pipeline.ipynb` (both stages). Never edit `Results/*.ipynb` |
+| Full-sheet detection + wire tracing → graph | `src/Object Detection/SLD Training/README.md`, then `wires.py`. Notebooks: `notebooks/kaggle-sld-stage-b.ipynb` (stage B only), `notebooks/kaggle-sld-pipeline.ipynb` (both stages), `notebooks/kaggle-sld-pipeline-v3.ipynb` (both stages on v3 crops + sheets-v2; code in `src/Object Detection/nbkit/`, Stage B AUG kept). Never edit `Results/*.ipynb` |
 | Run a notebook on Kaggle GPU from this PC (Kaggle API) | `src/kaggle_runner/README.md`, `run.py`, `jobs.json` |
 | Real evaluation sheets | `Data/Electric Sample Data/drawings/plant.pdf` and `Data/Electric Sample Data/data/` |
 

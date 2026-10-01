@@ -94,7 +94,8 @@ def _epoch_report(net):
 
 def train(data_yaml=DATA_YAML, model=MODEL_WEIGHTS, epochs=EPOCHS, imgsz=IMG_SIZE, batch=BATCH, name="sld", project=None,
           translate=0.2, shear=5.0, perspective=0.001, mixup=0.15, copy_paste=0.1,
-          degrees=180.0, fliplr=0.5, flipud=0.5, scale=0.5):
+          degrees=180.0, fliplr=0.5, flipud=0.5, scale=0.5, callbacks=None, report=True, verbose=True):
+    """callbacks: {ultralytics event: function(trainer)} (a notebook's live bars). report=False drops the per-epoch print."""
     from ultralytics import YOLO
 
     quiet_duplicate_logs()
@@ -102,14 +103,17 @@ def train(data_yaml=DATA_YAML, model=MODEL_WEIGHTS, epochs=EPOCHS, imgsz=IMG_SIZ
     project.mkdir(parents=True, exist_ok=True)
     data = resolve_data_yaml(data_yaml, project / "data.yaml")
     net = YOLO(model)
-    _epoch_report(net)
+    if report:
+        _epoch_report(net)
+    for event, fn in (callbacks or {}).items():
+        net.add_callback(event, fn)
     net.train(
         data=str(data), epochs=epochs, imgsz=imgsz, batch=batch, project=str(project), name=name, exist_ok=True,
         # full geometric augmentation, including rotation, plus colour and mosaic mixes
         fliplr=fliplr, flipud=flipud, degrees=degrees, scale=scale, mosaic=1.0, close_mosaic=10,
         hsv_h=0.015, hsv_s=0.3, hsv_v=0.3,
         translate=translate, shear=shear, perspective=perspective, mixup=mixup, copy_paste=copy_paste,
-        plots=True, verbose=True,
+        plots=True, verbose=verbose,
     )
     best = project / name / "weights" / "best.pt"
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
