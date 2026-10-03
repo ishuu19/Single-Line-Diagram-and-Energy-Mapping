@@ -195,7 +195,9 @@ class LiveBars:
     def on_train_batch_end(self, trainer):
         self.inner.update(1)
         if self.inner.n % 20 == 0 and trainer.tloss is not None:
-            self.inner.set_postfix(loss=f"{float(trainer.tloss.sum()):.3f}")
+            tl = trainer.tloss      # tensor in older ultralytics, dict of named losses in newer ones
+            vals = tl.values() if isinstance(tl, dict) else [tl]
+            self.inner.set_postfix(loss=f"{sum(float(v.sum() if hasattr(v, 'sum') else v) for v in vals):.3f}")
 
     def on_train_epoch_end(self, trainer):
         self.inner.close()
