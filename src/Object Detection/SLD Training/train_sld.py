@@ -131,8 +131,10 @@ def main():
     ap.add_argument("--imgsz", type=int, default=IMG_SIZE)
     ap.add_argument("--batch", type=int, default=BATCH)
     ap.add_argument("--name", default="sld")
+    ap.add_argument("--workers", type=int, default=8)
+    ap.add_argument("--project", type=Path, default=None)
     args = ap.parse_args()
-    print(train(args.data, args.model, args.epochs, args.imgsz, args.batch, args.name))
+    print(train(args.data, args.model, args.epochs, args.imgsz, args.batch, args.name, project=args.project, workers=args.workers))
 
 
 if __name__ == "__main__":
