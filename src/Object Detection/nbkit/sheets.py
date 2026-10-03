@@ -175,47 +175,69 @@ def show_augmentation(ctx, rng, repeats=2, cols=4):
     return n
 
 
-# ---------------------------------------------------------------- training with live bars (uses the repo's own train())
-class LiveBars:
-    """Ultralytics callbacks: outer bar = epochs (latest mAP), inner bar = batches. Ultralytics' own output is off."""
+# ---------------------------------------------------------------- training with live bars (child process running the repo's train_sld.py)
+def train_detector(epochs, project, aug=AUG, workers=2):
+    """Trains with train_sld.py in its own process (TensorFlow from Part A is loaded in this kernel, and forking torch workers from it
+    kills the kernel). Live bars are drawn from the progress file the child writes; a crash shows its exit code and log."""
+    import json
+    import os
+    import subprocess
+    import sys
+    import time
+    from tqdm.auto import tqdm
+    import config
+    from train_sld import MODEL_WEIGHTS
 
-    EVENTS = ("on_train_start", "on_train_epoch_start", "on_train_batch_end", "on_train_epoch_end", "on_fit_epoch_end", "on_train_end")
-
-    def __init__(self):
-        self.outer = self.inner = None
-
-    def on_train_start(self, trainer):
-        from tqdm.auto import tqdm
-        self.tqdm = tqdm
-        self.outer = tqdm(total=trainer.epochs, desc="epochs", unit="ep")
-
-    def on_train_epoch_start(self, trainer):
-        self.inner = self.tqdm(total=len(trainer.train_loader), desc=f"epoch {trainer.epoch + 1}", unit="it", leave=False)
-
-    def on_train_batch_end(self, trainer):
-        self.inner.update(1)
-        if self.inner.n % 20 == 0 and trainer.tloss is not None:
-            tl = trainer.tloss      # tensor in older ultralytics, dict of named losses in newer ones
-            vals = tl.values() if isinstance(tl, dict) else [tl]
-            self.inner.set_postfix(loss=f"{sum(float(v.sum() if hasattr(v, 'sum') else v) for v in vals):.3f}")
-
-    def on_train_epoch_end(self, trainer):
-        self.inner.close()
-
-    def on_fit_epoch_end(self, trainer):
-        m = trainer.metrics or {}
-        self.outer.update(1)
-        self.outer.set_postfix(mAP50=f"{m.get('metrics/mAP50(B)', 0):.3f}", mAP50_95=f"{m.get('metrics/mAP50-95(B)', 0):.3f}")
-
-    def on_train_end(self, trainer):
-        self.outer.close()
-
-
-def train_detector(epochs, project, aug=AUG):
-    """Trains with train_sld.train (one code path with the CLI), live bars instead of per-epoch prints."""
-    from train_sld import train
-    bars = LiveBars()
-    return train(epochs=epochs, project=project, callbacks={e: getattr(bars, e) for e in bars.EVENTS}, report=False, verbose=False, workers=2, **aug)
+    free_gpu()
+    project = Path(project)
+    project.mkdir(parents=True, exist_ok=True)
+    progress, log = project / "progress.jsonl", project / "train.log"
+    script = Path(config.__file__).with_name("train_sld.py")
+    cmd = [sys.executable, "-u", str(script), "--epochs", str(epochs), "--workers", str(workers),
+           "--project", str(project), "--progress", str(progress), "--aug", json.dumps(aug)]
+    env = {**os.environ, "YOLO_VERBOSE": "False", "PYTHONFAULTHANDLER": "1"}
+    outer = inner = None
+    seen = 0
+    with open(log, "w") as out:
+        proc = subprocess.Popen(cmd, cwd=script.parent, stdout=out, stderr=subprocess.STDOUT, env=env)
+        try:
+            while True:
+                done = proc.poll() is not None
+                lines = progress.read_text().splitlines() if progress.exists() else []
+                for line in lines[seen:]:
+                    try:
+                        row = json.loads(line)
+                    except ValueError:
+                        break      # half-written line: read it again next round
+                    seen += 1
+                    ev = row["ev"]
+                    if ev == "start":
+                        outer = tqdm(total=row["epochs"], desc="epochs", unit="ep")
+                    elif ev == "epoch":
+                        inner = tqdm(total=row["batches"], desc=f"epoch {row['n']}", unit="it", leave=False)
+                    elif ev == "batch" and inner is not None:
+                        inner.n = row["i"]
+                        inner.set_postfix(loss=f"{row['loss']:.3f}")
+                        inner.refresh()
+                    elif ev == "fit" and outer is not None:
+                        if inner is not None:
+                            inner.close()
+                        outer.update(1)
+                        outer.set_postfix(mAP50=f"{row['map50']:.3f}", mAP50_95=f"{row['map5095']:.3f}")
+                if done:
+                    break
+                time.sleep(1)
+        finally:
+            if proc.poll() is None:
+                proc.kill()
+            for bar in (inner, outer):
+                if bar is not None:
+                    bar.close()
+    if proc.returncode != 0:
+        tail = "".join(log.read_text(errors="replace").splitlines(keepends=True)[-40:])
+        hint = {-9: " (killed: out of memory)", -11: " (segmentation fault)"}.get(proc.returncode, "")
+        raise RuntimeError(f"detector training exited with code {proc.returncode}{hint}. Last log lines:\n{tail}")
+    return config.MODEL_DIR / f"sld_{Path(MODEL_WEIGHTS).stem}.pt"
 
 
 def plot_detector_curves(run):
@@ -263,7 +285,7 @@ def plot_detector_curves(run):
 def test_map(weights, data_yaml, imgsz):
     """Detector metrics on the test split, per-class AP chart. Frees the model afterwards. Returns (mAP50, mAP50-95)."""
     from ultralytics import YOLO
-    m = YOLO(str(weights)).val(data=str(data_yaml), split="test", imgsz=imgsz, plots=False, verbose=False)
+    m = YOLO(str(weights)).val(data=str(data_yaml), split="test", imgsz=imgsz, max_det=1000, plots=False, verbose=False)
     ap = pd.Series({m.names[int(c)]: float(m.box.maps[int(c)]) for c in m.box.ap_class_index}).sort_values()
     ax = ap.plot.barh(figsize=(7, max(3, len(ap) * 0.22)), color="#3b82f6")
     ax.set_title(f"test AP50-95 per class | mAP50 {m.box.map50:.3f}, mAP50-95 {m.box.map:.3f}")
@@ -344,8 +366,8 @@ def evaluate_sheets(ctx, recover, sample):
         g = ctx.load_graph(sid)
         mt = match_nodes(g["nodes"], plain["symbols"], g)
         for gi, n in enumerate(g["nodes"]):
-            found[n["type"]][1] += 1
-            found[n["type"]][0] += gi in mt
+            found.setdefault(n["type"], [0, 0])[1] += 1
+            found.setdefault(n["type"], [0, 0])[0] += gi in mt
         _, oracle = oracle_prediction(sid, "test", ctx.classes)
         rows.append({"sheet": sid, "direction": direction(sid), "found": len(mt), "gt": len(g["nodes"]),
                      "oracle": score_sheet(g, oracle), "det": score_sheet(g, plain), "clf": score_sheet(g, result),

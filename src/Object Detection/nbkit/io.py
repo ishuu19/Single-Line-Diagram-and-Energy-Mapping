@@ -121,6 +121,7 @@ def free_gpu():
         import tensorflow as tf
         tf.keras.backend.clear_session()
         tf.keras.mixed_precision.set_global_policy("float32")   # Part A trains in mixed_float16; inference after it does not need it
+        gc.collect()
     except Exception:
         pass
     try:
