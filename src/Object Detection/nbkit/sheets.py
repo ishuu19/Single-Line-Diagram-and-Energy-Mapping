@@ -215,7 +215,7 @@ def train_detector(epochs, project, aug=AUG):
     """Trains with train_sld.train (one code path with the CLI), live bars instead of per-epoch prints."""
     from train_sld import train
     bars = LiveBars()
-    return train(epochs=epochs, project=project, callbacks={e: getattr(bars, e) for e in bars.EVENTS}, report=False, verbose=False, **aug)
+    return train(epochs=epochs, project=project, callbacks={e: getattr(bars, e) for e in bars.EVENTS}, report=False, verbose=False, workers=2, **aug)
 
 
 def plot_detector_curves(run):
