@@ -20,6 +20,7 @@ import numpy as np
 from scipy import ndimage as ndi
 
 from config import BOX_PAD, INK_THRESHOLD, JUNCTION_CLASS, MIN_WIRE_PX, TEXT_CLASS, TOUCH_PAD
+from sld_data import flatten_white, from_px
 
 SYMBOL_EXCLUDE = {JUNCTION_CLASS, TEXT_CLASS}
 METER_TYPES = {"watthour_meter", "demand_meter"}
@@ -33,6 +34,9 @@ EIGHT = np.ones((3, 3), bool)
 
 # ----------------------------------------------------------------------------- image
 def to_gray(image):
+    """PIL image or array -> float32 grey. PIL images go through flatten_white (alpha over white, any mode)."""
+    if hasattr(image, "mode"):
+        image = flatten_white(image)
     arr = np.asarray(image)
     if arr.ndim == 3:
         if arr.shape[2] == 4:
@@ -131,19 +135,23 @@ def _scan_line(lab, line_index, axis, solid_set, uf, gap_pixels):
             if s1 - e0 - 1 > GAP_MAX_PX:
                 break
             if b not in solid_set or _is_perpendicular(lab, b, *pos(line_index, s1), axis):
-                continue  # dash or crossing wire in the gap: keep looking for the wire's continuation
+                continue  # crossing wire (or a blob not in wire_ids) in the gap: keep looking for the wire's continuation
             if b != a:
                 uf.union(a, b)
                 gap_pixels.append((axis, line_index, e0 + 1, s1 - 1))
             break
 
 
-def bridge_solid_gaps(lab, solid_ids):
-    """Union solid blobs separated by a crossing clearance. Returns (union-find, list of gap spans)."""
+def bridge_solid_gaps(lab, wire_ids):
+    """Union the listed blobs across small collinear gaps: dash gaps and crossing clearances alike.
+    Returns (union-find, list of gap spans).
+
+    trace() passes solid + dash ids, as the module docstring describes (every wire pixel is connectivity).
+    A blob left out of wire_ids is stepped over like a crossing wire, never joined."""
     uf = _UnionFind()
-    for i in solid_ids:
+    for i in wire_ids:
         uf.find(i)
-    solid_set = set(solid_ids)
+    solid_set = set(wire_ids)
     gaps = []
     h, w = lab.shape
     rows = np.flatnonzero((lab > 0).any(axis=1))
@@ -156,16 +164,38 @@ def bridge_solid_gaps(lab, solid_ids):
 
 
 # ----------------------------------------------------------------------------- symbols <-> ink
-def _touching(mask, symbols, shape, pad=TOUCH_PAD):
+# masks are cropped to their group's bounding box; `off` = (row, col) of the crop's corner in the sheet.
+# Clipping a shifted box to the crop is the same as clipping to the sheet and then cropping.
+def _shift(box, off):
+    return (box[0] - off[1], box[1] - off[0], box[2] - off[1], box[3] - off[0])
+
+
+def _touching(mask, symbols, off=(0, 0), pad=TOUCH_PAD):
     out = []
     for k, d in enumerate(symbols):
-        x0, y0, x1, y1 = _clip_box(d["bbox"], shape, pad)
+        x0, y0, x1, y1 = _clip_box(_shift(d["bbox"], off), mask.shape, pad)
         if x1 > x0 and y1 > y0 and mask[y0:y1, x0:x1].any():
             out.append(k)
     return out
 
 
+def _distance(mask, box, off=(0, 0), pad=TOUCH_PAD_FAR):
+    """Smallest distance (px) from `box` to a mask pixel within `pad` of it, or None when there is none."""
+    bx0, by0, bx1, by1 = _shift(box, off)
+    x0, y0, x1, y1 = _clip_box((bx0, by0, bx1, by1), mask.shape, pad)
+    if x1 <= x0 or y1 <= y0:
+        return None
+    ys, xs = np.nonzero(mask[y0:y1, x0:x1])
+    if not len(ys):
+        return None
+    cx, cy = xs + x0 + 0.5, ys + y0 + 0.5  # pixel centres
+    dx = np.maximum(np.maximum(bx0 - cx, cx - bx1), 0)
+    dy = np.maximum(np.maximum(by0 - cy, cy - by1), 0)
+    return float(np.hypot(dx, dy).min())
+
+
 def _seed_pixels(mask, box, pad=TOUCH_PAD):
+    """Mask pixels near `box`, in the mask's own coordinates (pass a box already shifted into them)."""
     x0, y0, x1, y1 = _clip_box(box, mask.shape, pad)
     if not mask[y0:y1, x0:x1].any():  # dashed links may end inside a dash gap: look a little further
         x0, y0, x1, y1 = _clip_box(box, mask.shape, TOUCH_PAD_FAR)
@@ -175,23 +205,27 @@ def _seed_pixels(mask, box, pad=TOUCH_PAD):
 
 
 class _Geodesic:
-    """Along-the-wire distances over a boolean mask (scikit-image minimum cost path, 8-connected)."""
+    """Along-the-wire distances over a boolean mask (scikit-image minimum cost path, 8-connected).
+
+    One MCP per source key: its cost buffer and traceback state stay valid, so path() never re-runs find_costs."""
 
     def __init__(self, mask):
-        from skimage.graph import MCP_Geometric
         self.mask = mask
-        costs = np.where(mask, 1.0, np.inf)
-        self.mcp = MCP_Geometric(costs, fully_connected=True)
+        self.costs = np.where(mask, 1.0, np.inf)
+        self.mcp = {}
 
-    def from_seeds(self, seeds):
+    def from_seeds(self, seeds, key=None):
+        from skimage.graph import MCP_Geometric
         seeds = [tuple(p) for p in seeds if self.mask[p]]
         if not seeds:
             return None
-        dist, _ = self.mcp.find_costs(seeds)
-        return dist.copy()  # find_costs hands back a view of its own buffer; the next call would overwrite it
+        mcp = MCP_Geometric(self.costs, fully_connected=True)
+        dist, _ = mcp.find_costs(seeds)  # a view of this MCP's own buffer; nothing else writes to it
+        self.mcp[key] = mcp
+        return dist
 
-    def path(self, end):
-        return [(int(y), int(x)) for y, x in self.mcp.traceback(end)]
+    def path(self, key, end):
+        return [(int(y), int(x)) for y, x in self.mcp[key].traceback(end)]
 
 
 def _relationship(a, b):
@@ -203,23 +237,21 @@ def _centre(box):
     return ((box[0] + box[2]) / 2, (box[1] + box[3]) / 2)
 
 
-def net_edges(mask, members, symbols):
-    """Edges inside one net.
+def net_edges(mask, members, symbols, off=(0, 0)):
+    """Edges inside one net. `mask` is the net's crop (tight to its pixels), its corner at `off` in the sheet.
 
     power       : minimum spanning tree over geodesic distances between the non-meter members
     measurement : every meter -> the nearest CT / PT along the wire (else the nearest other member)
     """
-    sl = ndi.find_objects(mask.astype(np.int8))[0]
-    sub = mask[sl]
-    oy, ox = sl[0].start, sl[1].start
-    seeds = {k: [(y - oy, x - ox) for y, x in _seed_pixels(mask, symbols[k]["bbox"])] for k in members}
+    oy, ox = off
+    seeds = {k: _seed_pixels(mask, _shift(symbols[k]["bbox"], off)) for k in members}
     seeds = {k: v for k, v in seeds.items() if v}
     if len(seeds) < 2:
         return []
-    geo = _Geodesic(sub)
+    geo = _Geodesic(mask)
     dist = {}
     for k, pts in seeds.items():
-        dist[k] = geo.from_seeds(pts)
+        dist[k] = geo.from_seeds(pts, key=k)
 
     def d(a, b):
         da = dist[a]
@@ -229,8 +261,7 @@ def net_edges(mask, members, symbols):
     def path(a, b):
         da = dist[a]
         end = min((p for p in seeds[b] if np.isfinite(da[p])), key=lambda p: da[p])
-        geo.from_seeds(seeds[a])  # reset traceback state to source a
-        return [(y + oy, x + ox) for y, x in geo.path(end)]
+        return [(y + oy, x + ox) for y, x in geo.path(a, end)]
 
     meters = [k for k in seeds if symbols[k]["type"] in METER_TYPES]
     power = [k for k in seeds if k not in meters]
@@ -262,7 +293,8 @@ def trace(image, detections):
 
     lab, solid_ids, dash_ids = split_blobs(ink)
     blob_ids = solid_ids + dash_ids
-    # one scan bridges dash gaps (8 px) and crossing clearances (10 px) alike; perpendicular ink is skipped
+    # one scan bridges dash gaps (8 px) and crossing clearances (10 px) alike, so dash ids go in with the solid
+    # ones; perpendicular ink is skipped
     uf, gaps = bridge_solid_gaps(lab, blob_ids)
 
     groups = {}
@@ -273,39 +305,50 @@ def trace(image, detections):
         near_blob = lab[line, g0 - 1] if axis == 1 else lab[g0 - 1, line]
         gap_by_root.setdefault(uf.find(int(near_blob)), []).append((axis, line, g0, g1))
 
+    # label -> group number (0 = background), computed once; each group's mask is built inside its bounding box only
+    group_of = np.zeros(int(lab.max()) + 1, np.int32)
+    for gi, blobs in enumerate(groups.values(), start=1):
+        group_of[blobs] = gi
+    blob_sl = ndi.find_objects(lab)
+    dash_set = set(dash_ids)
+
     masks = []
-    for root, blobs in groups.items():
-        mask = np.isin(lab, blobs)
+    for gi, (root, blobs) in enumerate(groups.items(), start=1):
+        # a bridged gap lies between two blobs of its group, so the union of the blobs' boxes holds it too
+        y0 = min(blob_sl[b - 1][0].start for b in blobs)
+        y1 = max(blob_sl[b - 1][0].stop for b in blobs)
+        x0 = min(blob_sl[b - 1][1].start for b in blobs)
+        x1 = max(blob_sl[b - 1][1].stop for b in blobs)
+        mask = group_of[lab[y0:y1, x0:x1]] == gi
         for axis, line, g0, g1 in gap_by_root.get(root, []):
             if axis == 1:
-                mask[line, g0:g1 + 1] = True
+                mask[line - y0, g0 - x0:g1 - x0 + 1] = True
             else:
-                mask[g0:g1 + 1, line] = True
-        sl = ndi.find_objects(mask.astype(np.int8))[0]
-        if sl is None:
-            continue
-        members = _touching(mask, symbols, mask.shape)
+                mask[g0 - y0:g1 - y0 + 1, line - x0] = True
+        off = (y0, x0)
+        members = _touching(mask, symbols, off)
         # a short stub is a stray glyph unless it joins two symbols (a bus-tie sits ~9 px from its bus)
-        if max(sl[0].stop - sl[0].start, sl[1].stop - sl[1].start) < MIN_WIRE_PX and len(members) < 2:
+        if max(y1 - y0, x1 - x0) < MIN_WIRE_PX and len(members) < 2:
             continue
-        masks.append((mask, blobs, members))
+        masks.append((mask, off, blobs, members))
 
-    # symbols that no wire reaches at the normal radius (dashed link ending in a gap): second look, wider
-    reached = {k for _, _, members in masks for k in members}
+    # symbols that no wire reaches at the normal radius (dashed link ending in a gap): second look, wider,
+    # joining the nearest net within TOUCH_PAD_FAR
+    reached = {k for *_, members in masks for k in members}
     for k, d in enumerate(symbols):
         if k in reached:
             continue
-        for mask, blobs, members in masks:
-            if _touching(mask, [d], mask.shape, TOUCH_PAD_FAR):
-                members.append(k)
-                break
+        near = [(_distance(mask, d["bbox"], off, TOUCH_PAD_FAR), j) for j, (mask, off, _, _) in enumerate(masks)]
+        near = [(dist, j) for dist, j in near if dist is not None]
+        if near:
+            masks[min(near)[1]][3].append(k)
 
     nets, edges = [], []
-    for mask, blobs, members in masks:
+    for mask, off, blobs, members in masks:
         if not members:
             continue
-        nets.append({"members": members, "blobs": blobs, "dashed_blobs": sum(1 for b in blobs if b in dash_ids)})
-        for a, b, rel, pth in net_edges(mask, members, symbols):
+        nets.append({"members": members, "blobs": blobs, "dashed_blobs": sum(1 for b in blobs if b in dash_set)})
+        for a, b, rel, pth in net_edges(mask, members, symbols, off):
             edges.append(_edge(a, b, rel, pth))
 
     return {"symbols": symbols, "nets": nets, "edges": edges, "wire_labels": lab}
@@ -313,15 +356,20 @@ def trace(image, detections):
 
 def _edge(a, b, rel, path):
     step = max(1, len(path) // 40)
-    pts = [[int(x), int(y)] for y, x in path[::step]] + [[int(path[-1][1]), int(path[-1][0])]]
+    pts = [[int(x), int(y)] for y, x in path[::step]]
+    if (len(path) - 1) % step:  # the last vertex is off the stride: add it once
+        pts.append([int(path[-1][1]), int(path[-1][0])])
     return {"a": a, "b": b, "relationship": rel, "polyline": pts}
 
 
-def to_graph_json(result, sheet_id="", png_scale=2):
-    nodes = [{"id": d.get("id", f"N{k:03d}"), "type": d["type"], "bbox": [v / png_scale for v in d["bbox"]],
+def to_graph_json(result, sheet_id="", image_info=None):
+    """Pixel-space trace result -> graph.json-style dict in SVG units (sld_data.from_px; image_info is graph.json's
+    `image` block: png_scale, y_offset, x_offset; default scale 2, no offset). Nets list node ids.
+    graph_eval scores the pixel-space result (symbol indices), not this."""
+    nodes = [{"id": d.get("id", f"N{k:03d}"), "type": d["type"], "bbox": from_px(d["bbox"], image_info),
               "confidence": d.get("conf", 1.0)} for k, d in enumerate(result["symbols"])]
     edges = [{"id": f"E{j + 1:03d}", "source": nodes[e["a"]]["id"], "target": nodes[e["b"]]["id"],
               "relationship": e["relationship"], "line_style": "dashed" if e["relationship"] == "measurement" else "solid",
-              "polyline": [[x / png_scale, y / png_scale] for x, y in e["polyline"]]} for j, e in enumerate(result["edges"])]
+              "polyline": [from_px(p, image_info) for p in e["polyline"]]} for j, e in enumerate(result["edges"])]
     return {"diagram_id": sheet_id, "nodes": nodes, "edges": edges,
-            "nets": {str(i): n["members"] for i, n in enumerate(result["nets"])}}
+            "nets": {str(i): [nodes[k]["id"] for k in n["members"]] for i, n in enumerate(result["nets"])}}

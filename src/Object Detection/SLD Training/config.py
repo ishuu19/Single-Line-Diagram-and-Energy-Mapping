@@ -32,9 +32,13 @@ SYMBOL_ORDER = [
 ]
 JUNCTION_CLASS = "junction"
 TEXT_CLASS = "text"
+# Fixed detector class list (ids never depend on which types a build happens to contain).
+DETECTOR_CLASSES = SYMBOL_ORDER + [JUNCTION_CLASS, TEXT_CLASS]
 
 # Split: the ten hand-authored PLANT-* sheets are the closest to the real drawing, so they
-# are test only when present. Bulk GEN-* sheets go 85 / 10 / 5 into train / val / test by id hash (stable).
+# are test only when present. Bulk GEN-* sheets go 85 / 10 / 5 into train / val / test by a stable
+# hash of their structure (node-type multiset + edge kinds), so sheets that share a topology
+# signature never straddle splits; `--split-by id` restores the old per-sheet-id hash.
 VAL_FRACTION = 0.10
 TEST_FRACTION = 0.05
 TEST_PREFIX = "PLANT-"

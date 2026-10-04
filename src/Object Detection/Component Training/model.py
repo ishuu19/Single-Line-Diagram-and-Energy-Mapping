@@ -54,7 +54,10 @@ class RandomDegrade(layers.Layer):
 
 @tf.keras.utils.register_keras_serializable(package="component_training")
 class RandomHalfTurn(layers.Layer):
-    """Turns a random share of the batch by 180 degrees (training only). Crops are generated at 0/90/270 only."""
+    """Turns a random share of the batch by 180 degrees (training only).
+
+    Not used in new models: a label-blind half-turn corrupts orientation-sensitive classes, so data.py turns only
+    config.HALF_TURN_SAFE types. Kept registered so older checkpoints that contain it still load."""
 
     def __init__(self, prob=HALF_TURN, **kwargs):
         kwargs.setdefault("dtype", "float32")
@@ -73,7 +76,6 @@ class RandomHalfTurn(layers.Layer):
 def build_geometric():
     fill = dict(fill_mode="constant", fill_value=0.0)  # background is 0 after inversion
     return models.Sequential([
-        RandomHalfTurn(),
         layers.RandomRotation(ROTATION, **fill),
         layers.RandomZoom(ZOOM, **fill),
         layers.RandomTranslation(TRANSLATION, TRANSLATION, **fill),
@@ -96,25 +98,28 @@ def custom_features(x, width):
     return layers.GlobalAveragePooling2D()(x)
 
 
-def backbone_features(x, name):
+def backbone_features(x, name, weights="imagenet"):
     x = layers.Concatenate()([x, x, x])  # pretrained nets want RGB; they include their own 0-255 preprocessing
     ctor = {
         "efficientnetv2b0": tf.keras.applications.EfficientNetV2B0,
         "mobilenetv3small": tf.keras.applications.MobileNetV3Small,
         "convnexttiny": tf.keras.applications.ConvNeXtTiny,
     }[name]
-    backbone = ctor(include_top=False, weights="imagenet", input_shape=(*IMG_SIZE, 3), pooling="avg")
-    backbone._name = "backbone"
-    return backbone(x)
+    return backbone_ctor(ctor, weights)(x)
 
 
-def build_model(num_classes, hp=None, backbone=None):
+def backbone_ctor(ctor, weights="imagenet"):
+    # name= at construction: Keras 3 ignores a later _name assignment, and train.py looks the layer up by name
+    return ctor(include_top=False, weights=weights, input_shape=(*IMG_SIZE, 3), pooling="avg", name="backbone")
+
+
+def build_model(num_classes, hp=None, backbone=None, backbone_weights="imagenet"):
     hp = {**DEFAULT_HP, **(hp or {})}
     inputs = layers.Input(shape=(*IMG_SIZE, 1))
     x = build_geometric()(inputs)
     x = RandomDegrade(prob=hp["degrade_prob"], name="degrade")(x)
 
-    x = backbone_features(x, backbone) if backbone else custom_features(x, hp["width"])
+    x = backbone_features(x, backbone, backbone_weights) if backbone else custom_features(x, hp["width"])
 
     x = layers.Dropout(hp["dropout"])(x)
     x = layers.Dense(256, activation="relu")(x)

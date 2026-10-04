@@ -1,9 +1,13 @@
 """Parallel build of Data/sld-sheets, written to a drive with free space.
 
-Same files as build_sld_dataset.py: images, YOLO labels, graphs, data.yaml.
+Same files as build_sld_dataset.py: images, YOLO labels, graphs, data.yaml, split.json, build_info.json.
+
+  python _pack_sld_sheets.py <dest>                   # e.g. ../../../Data/sld-sheets-v2 (must not exist)
+  python _pack_sld_sheets.py <dest> --split-by id     # old per-sheet-id hash split
 """
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 from collections import Counter
@@ -11,9 +15,8 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import build_sld_dataset as b
-from config import JUNCTION_CLASS, SYMBOL_ORDER, SYNTHETIC_DIR, TEXT_CLASS
+from config import SYNTHETIC_DIR
 
-DEST = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(r"C:\Users\User\FYP\sld-sheets")   # e.g. Data/sld-sheets-v2
 WORKERS = 8
 
 
@@ -29,15 +32,19 @@ def types_of(pid: str):
     return {n["type"] for n in g["nodes"]}
 
 
-def one(pid_classes):
-    pid, classes = pid_classes
+def one(args):
+    pid, split_by = args
     counts = Counter()
-    split = b.write_sheet(pid, classes, counts)
-    return split, counts
+    split = b.write_sheet(pid, counts, split_by)
+    return pid, split, counts
 
 
 def main():
-    dest = DEST
+    ap = argparse.ArgumentParser()
+    ap.add_argument("dest", type=Path, help="output folder (must not exist), e.g. Data/sld-sheets-v2")
+    ap.add_argument("--split-by", choices=b.SPLIT_BY, default="structure")
+    args = ap.parse_args()
+    dest = args.dest
     b.SHEETS_DIR = dest
     b.GRAPHS_DIR = dest / "graphs"
     b.DATA_YAML = dest / "data.yaml"
@@ -57,43 +64,31 @@ def main():
             done += 1
             if done % 1000 == 0:
                 print(f"class scan {done}/{len(ids)}", flush=True)
-    unknown = sorted(present - set(SYMBOL_ORDER))
-    if unknown:
-        raise SystemExit(f"types missing from config.SYMBOL_ORDER: {unknown}")
-    classes = [t for t in SYMBOL_ORDER if t in present] + [JUNCTION_CLASS, TEXT_CLASS]
-    print(f"{len(classes)} classes", flush=True)
+    b.check_types(present)
+    print(f"{len(b.CLASSES)} classes (fixed list)", flush=True)
 
     if dest.exists():
         raise SystemExit(f"refusing to overwrite {dest}")
-    for split in ("train", "val", "test"):
+    for split in b.SPLITS:
         (dest / "images" / split).mkdir(parents=True)
         (dest / "labels" / split).mkdir(parents=True)
     b.GRAPHS_DIR.mkdir(parents=True, exist_ok=True)
 
-    splits, counts = Counter(), Counter()
+    splits, counts, table = Counter(), Counter(), {}
     done = 0
     with ThreadPoolExecutor(WORKERS) as ex:
-        for split, c in ex.map(one, ((pid, classes) for pid in ids), chunksize=8):
+        for pid, split, c in ex.map(one, ((pid, args.split_by) for pid in ids), chunksize=8):
+            table[pid] = split
             splits[split] += 1
             counts.update(c)
             done += 1
             if done % 500 == 0 or done == len(ids):
                 print(f"wrote {done}/{len(ids)} {dict(splits)}", flush=True)
 
-    (dest / "classes.txt").write_text("\n".join(classes) + "\n", encoding="utf-8")
-    (dest / "split.json").write_text(json.dumps({pid: b.split_for(pid) for pid in ids}), encoding="utf-8")
-    b.DATA_YAML.write_text("\n".join([
-        "path: .",
-        "train: images/train",
-        "val: images/val",
-        "test: images/test",
-        f"nc: {len(classes)}",
-        "names:",
-        *[f"  {i}: {c}" for i, c in enumerate(classes)],
-        "",
-    ]), encoding="utf-8")
-    print(f"{len(ids)} sheets -> {dict(splits)}", flush=True)
-    print(f"boxes per class: {dict(counts)}", flush=True)
+    b.check_consistency(dest, table)
+    b.write_meta(dest, table, args.split_by, b.DATA_YAML)
+    print(f"{len(ids)} sheets -> {dict(splits)} (split by {args.split_by})", flush=True)
+    print(f"boxes per class: {b.report(counts)}", flush=True)
     print(dest, flush=True)
 
 

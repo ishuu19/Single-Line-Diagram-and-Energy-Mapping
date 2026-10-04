@@ -15,9 +15,12 @@ from data import load_datasets
 from model import build_model, compile_model
 
 
-def setup():
+def setup(deterministic=False):
     tf.get_logger().setLevel("ERROR")
     tf.keras.utils.set_random_seed(SEED)
+    if deterministic:
+        # reproducible kernels (slower; some GPU ops raise if they have no deterministic version)
+        tf.config.experimental.enable_op_determinism()
     if tf.config.list_physical_devices("GPU"):
         tf.keras.mixed_precision.set_global_policy("mixed_float16")
     for d in (MODEL_DIR, OUTPUT_DIR, LOG_DIR):
@@ -35,12 +38,20 @@ def lr_schedule(steps_per_epoch, peak, epochs=EPOCHS):
 
 
 def callbacks(tag):
+    """Create once per run and reuse across fit() calls, so the checkpoint keeps its best across phases."""
+    csv = OUTPUT_DIR / f"{tag}_history.csv"
+    csv.unlink(missing_ok=True)  # one file per run; append=True below only joins the phases of this run
     return [
-        tf.keras.callbacks.EarlyStopping(monitor="val_loss", patience=EARLY_STOP_PATIENCE, restore_best_weights=True),
-        tf.keras.callbacks.ModelCheckpoint(str(MODEL_DIR / f"{tag}_best.keras"), monitor="val_accuracy", save_best_only=True),
-        tf.keras.callbacks.CSVLogger(str(OUTPUT_DIR / f"{tag}_history.csv"), append=True),
+        tf.keras.callbacks.EarlyStopping(monitor="val_loss", mode="min", patience=EARLY_STOP_PATIENCE, restore_best_weights=True),
+        tf.keras.callbacks.ModelCheckpoint(str(MODEL_DIR / f"{tag}_best.keras"), monitor="val_loss", mode="min", save_best_only=True),
+        tf.keras.callbacks.CSVLogger(str(csv), append=True),
         tf.keras.callbacks.TensorBoard(str(LOG_DIR / tag)),
     ]
+
+
+def save_class_names(tag, class_names):
+    """`<tag>.names.json` next to `<tag>.keras`: the logit order evaluate.py loads for that checkpoint."""
+    (MODEL_DIR / f"{tag}.names.json").write_text(json.dumps(list(class_names)))
 
 
 def load_hp(path):
@@ -77,8 +88,13 @@ class EpochBar(tf.keras.callbacks.Callback):
         self.bar.close()
 
 
-def fit(model, train_ds, val_ds, weights, epochs, tag):
-    return model.fit(train_ds, validation_data=val_ds, epochs=epochs, class_weight=weights, callbacks=callbacks(tag) + [EpochBar()], verbose=0)
+def fit(model, train_ds, val_ds, weights, epochs, tag, cbs=None, initial_epoch=0):
+    """epochs is the final epoch index (Keras semantics), so a second phase passes initial_epoch."""
+    cbs = callbacks(tag) if cbs is None else cbs
+    return model.fit(
+        train_ds, validation_data=val_ds, epochs=epochs, initial_epoch=initial_epoch, class_weight=weights,
+        callbacks=cbs + [EpochBar()], verbose=0,
+    )
 
 
 def train(hp, backbone=None, epochs=EPOCHS):
@@ -87,19 +103,23 @@ def train(hp, backbone=None, epochs=EPOCHS):
     tag = backbone or "custom"
     model = build_model(len(class_names), hp, backbone)
     histories = []
+    cbs = callbacks(tag)
+    for t in (tag, f"{tag}_best"):
+        save_class_names(t, class_names)
+    start = 0
 
     if backbone:
         # head-only warmup at the peak LR, then unfreeze everything at a tenth of it
         model.get_layer("backbone").trainable = False
         compile_model(model, hp["learning_rate"], hp)
-        histories.append(fit(model, train_ds, val_ds, weights, FREEZE_EPOCHS, tag).history)
+        histories.append(fit(model, train_ds, val_ds, weights, FREEZE_EPOCHS, tag, cbs).history)
         model.get_layer("backbone").trainable = True
-        peak, epochs = hp["learning_rate"] / 10, epochs - FREEZE_EPOCHS
+        peak, start = hp["learning_rate"] / 10, FREEZE_EPOCHS
     else:
         peak = hp["learning_rate"]
 
-    compile_model(model, lr_schedule(steps, peak, epochs), hp)
-    histories.append(fit(model, train_ds, val_ds, weights, epochs, tag).history)
+    compile_model(model, lr_schedule(steps, peak, epochs - start), hp)
+    histories.append(fit(model, train_ds, val_ds, weights, epochs, tag, cbs, initial_epoch=start).history)
 
     history = {k: sum((h.get(k, []) for h in histories), []) for k in histories[-1]}
     return model, history, class_names, tag
@@ -110,14 +130,16 @@ def main():
     parser.add_argument("--backbone", choices=BACKBONES)
     parser.add_argument("--hp", type=lambda p: OUTPUT_DIR / p, help="json from tune.py, e.g. best_hp.json")
     parser.add_argument("--epochs", type=int, default=EPOCHS)
+    parser.add_argument("--deterministic", action="store_true", help="enable TF op determinism (slower)")
     args = parser.parse_args()
 
-    setup()
+    setup(args.deterministic)
     model, history, class_names, tag = train(load_hp(args.hp), args.backbone, args.epochs)
 
     model.save(str(MODEL_DIR / f"{tag}.keras"))
+    save_class_names(tag, class_names)
     (OUTPUT_DIR / f"{tag}_history.json").write_text(json.dumps(history))
-    (MODEL_DIR / "class_names.json").write_text(json.dumps(class_names))
+    (MODEL_DIR / "class_names.json").write_text(json.dumps(class_names))  # last run only; prefer <tag>.names.json
 
 
 if __name__ == "__main__":

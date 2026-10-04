@@ -2,13 +2,16 @@
 Normalise external (CGHD) test crops to the training domain: white paper, black ink,
 square canvas with a paper margin, so a hand-drawn photo crop looks like a Schematex crop.
 
-Idempotent. The first run moves the raw crops to images/test_raw and always re-normalises
-from there, so re-running never compounds the transform.
+Idempotent. The first run copies the raw crops to images/test_raw and always re-normalises
+from there, so re-running never compounds the transform. If images/test and images/test_raw
+hold different file sets the backup is stale and the script stops; rebuild the crops
+(build_cghd_test_crops.py drops test_raw) or pass --reset-raw when images/test is raw.
 
 Usage (from this folder):
   python normalise_test_crops.py                 # component-symbols-test/
   python normalise_test_crops.py --test-dir PATH
   python normalise_test_crops.py --preview 6     # also save outputs/test_crops_normalised.png
+  python normalise_test_crops.py --reset-raw     # images/test holds fresh raw crops: re-copy them to test_raw
 """
 
 from __future__ import annotations
@@ -44,14 +47,26 @@ def normalise_crop(img: Image.Image, margin=MARGIN, paper=PAPER, gamma=GAMMA) ->
     return canvas
 
 
-def normalise_dir(test_dir: Path, split="test") -> list[Path]:
+def normalise_dir(test_dir: Path, split="test", reset_raw=False) -> list[Path]:
     img_dir = test_dir / "images" / split
     raw_dir = test_dir / "images" / f"{split}_raw"
+    if reset_raw and raw_dir.exists():
+        shutil.rmtree(raw_dir)
     if not raw_dir.exists():
         shutil.copytree(img_dir, raw_dir)
+    else:
+        raw_names = {p.name for p in raw_dir.glob("*.png")}
+        img_names = {p.name for p in img_dir.glob("*.png")}
+        if raw_names != img_names:
+            raise SystemExit(
+                f"{raw_dir} is stale: {len(img_names - raw_names)} crops only in images/{split}, "
+                f"{len(raw_names - img_names)} only in {raw_dir.name}. Rebuild with build_cghd_test_crops.py --refresh, "
+                f"or pass --reset-raw if images/{split} currently holds raw (un-normalised) crops."
+            )
     raw_files = sorted(raw_dir.glob("*.png"))
     for p in raw_files:
-        normalise_crop(Image.open(p)).save(img_dir / p.name)
+        with Image.open(p) as img:
+            normalise_crop(img).save(img_dir / p.name)
     return raw_files
 
 
@@ -63,9 +78,10 @@ def save_preview(test_dir: Path, raw_files: list[Path], n: int, out_path: Path):
     show = raw_files[:: max(1, len(raw_files) // n)][:n]
     fig, axes = plt.subplots(2, len(show), figsize=(2.2 * len(show), 4.6), squeeze=False)
     for j, p in enumerate(show):
-        axes[0, j].imshow(Image.open(p), cmap="gray", vmin=0, vmax=255)
+        with Image.open(p) as raw, Image.open(test_dir / "images" / "test" / p.name) as norm:
+            axes[0, j].imshow(np.asarray(raw.convert("L")), cmap="gray", vmin=0, vmax=255)
+            axes[1, j].imshow(np.asarray(norm.convert("L")), cmap="gray", vmin=0, vmax=255)
         axes[0, j].set_title("raw", fontsize=8)
-        axes[1, j].imshow(Image.open(test_dir / "images" / "test" / p.name), cmap="gray", vmin=0, vmax=255)
         axes[1, j].set_title("normalised", fontsize=8)
     for ax in axes.flat:
         ax.axis("off")
@@ -79,11 +95,12 @@ def main():
     parser = argparse.ArgumentParser(description="Normalise external test crops to the training domain")
     parser.add_argument("--test-dir", type=Path, default=TEST_DATA_DIR)
     parser.add_argument("--preview", type=int, default=0, help="Save a raw/normalised strip of N crops to outputs/")
+    parser.add_argument("--reset-raw", action="store_true", help="Replace images/test_raw with the current images/test (only when those are raw)")
     args = parser.parse_args()
 
     if not (args.test_dir / "images" / "test").is_dir():
         raise SystemExit(f"no images/test under {args.test_dir}")
-    raw_files = normalise_dir(args.test_dir)
+    raw_files = normalise_dir(args.test_dir, reset_raw=args.reset_raw)
     print(f"normalised {len(raw_files)} crops -> {args.test_dir / 'images' / 'test'}")
     if args.preview:
         out = OUTPUT_DIR / "test_crops_normalised.png"

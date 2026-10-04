@@ -6,26 +6,56 @@ import numpy as np
 import tensorflow as tf
 from sklearn.metrics import ConfusionMatrixDisplay, classification_report
 
-import model as _  # registers RandomDegrade for load_model
+from model import RandomHalfTurn  # importing model registers the custom layers for load_model
 from config import MODEL_DIR, OUTPUT_DIR, PRINTED_TEST_DATA_DIR, SEED, TEST_DATA_DIR, TTA_PASSES
-from data import load_datasets, load_external_test_dataset, load_test_dataset
+from data import load_datasets, load_external_test_dataset, load_test_dataset, read_manifest, classifier_classes
+
+
+def _tta_layers(model):
+    # older checkpoints carry RandomHalfTurn inside `geometric`; a blind 180 deg view mislabels orientation-sensitive
+    # classes, so TTA uses only the small rotation / zoom / shift / contrast jitter
+    return [l for l in model.get_layer("geometric").layers if not isinstance(l, RandomHalfTurn)]
+
+
+def _augment(layers_, images):
+    for layer in layers_:
+        images = layer(images, training=True)
+    return images
 
 
 def predict(model, ds, mode="clean"):
-    geometric, degrade = model.get_layer("geometric"), model.get_layer("degrade")
+    tta, degrade = _tta_layers(model), model.get_layer("degrade")
     labels, probs = [], []
-    for images, y in ds:
-        if mode == "degraded":
-            images = degrade(images, training=True)
-        if mode == "tta":
-            # the model's own augmentation is inert at inference, so feed pre-augmented views through it
-            views = [images] + [geometric(images, training=True) for _ in range(TTA_PASSES)]
-            p = np.mean([tf.nn.softmax(model(v, training=False), -1).numpy() for v in views], axis=0)
-        else:
-            p = tf.nn.softmax(model(images, training=False), -1).numpy()
-        probs.append(p)
-        labels.append(np.argmax(y.numpy(), -1))
+    prob = degrade.prob
+    if mode == "degraded":
+        degrade.prob = 1.0  # every image damaged: the metric measures robustness, not a half-clean mix
+        tf.keras.utils.set_random_seed(SEED)  # same damage on every run, whatever ran before
+    try:
+        for images, y in ds:
+            if mode == "degraded":
+                images = degrade(images, training=True)
+            if mode == "tta":
+                # the model's own augmentation is inert at inference, so feed pre-augmented views through it
+                views = [images] + [_augment(tta, images) for _ in range(TTA_PASSES)]
+                p = np.mean([tf.nn.softmax(model(v, training=False), -1).numpy() for v in views], axis=0)
+            else:
+                p = tf.nn.softmax(model(images, training=False), -1).numpy()
+            probs.append(p)
+            labels.append(np.argmax(y.numpy(), -1))
+    finally:
+        degrade.prob = prob
     return np.concatenate(labels), np.argmax(np.concatenate(probs), -1)
+
+
+def load_class_names_for(model_stem):
+    """Logit order for a checkpoint: `<stem>.names.json`, else models/class_names.json, else the manifest."""
+    for path in (MODEL_DIR / f"{model_stem}.names.json", MODEL_DIR / "class_names.json"):
+        if path.is_file():
+            if path.name == "class_names.json":
+                print(f"warning: no {model_stem}.names.json; using class_names.json (written by the last train.py run)")
+            return json.loads(path.read_text())
+    print("warning: no saved class names; rebuilding the order from the manifest, which only matches if the crop set is unchanged")
+    return classifier_classes(read_manifest())
 
 
 def most_confused(labels, predictions, class_names, n=10):
@@ -47,7 +77,13 @@ def main():
     args = parser.parse_args()
 
     tf.keras.utils.set_random_seed(SEED)
-    _, val_ds, class_names, _ = load_datasets()
+    # compile=False: inference only, and skips the stale optimizer state saved with older checkpoints
+    model = tf.keras.models.load_model(str(MODEL_DIR / f"{args.model}.keras"), compile=False)
+    class_names = load_class_names_for(args.model)
+    n_out = model.output_shape[-1]
+    assert len(class_names) == n_out, f"{len(class_names)} class names but the model has {n_out} outputs"
+
+    _, val_ds, class_names, _ = load_datasets(class_names=class_names)
     eval_ds = val_ds
     split_tag = "val"
     external = {
@@ -63,9 +99,6 @@ def main():
             raise SystemExit(f"{data_dir.name} not found; {hint}.")
     split_tag += args.out_suffix
 
-    # compile=False: inference only, and skips the stale optimizer state saved with older checkpoints
-    model = tf.keras.models.load_model(str(MODEL_DIR / f"{args.model}.keras"), compile=False)
-
     metrics = {}
     for mode in ("clean", "tta", "degraded"):
         labels, predictions = predict(model, eval_ds, mode)
@@ -73,8 +106,12 @@ def main():
     print(json.dumps(metrics, indent=2))
 
     labels, predictions = predict(model, eval_ds, "clean")
-    all_ids = list(range(len(class_names)))  # external test sets cover only some classes
-    print(classification_report(labels, predictions, labels=all_ids, target_names=class_names, zero_division=0))
+    # external test sets cover only some classes: average over classes that occur as truth or prediction
+    present = sorted(set(labels.tolist()) | set(predictions.tolist()))
+    print(classification_report(
+        labels, predictions, labels=present, target_names=[class_names[i] for i in present], zero_division=0
+    ))
+    all_ids = list(range(len(class_names)))
     for (true, pred), count in most_confused(labels, predictions, class_names):
         print(f"{true} -> {pred}: {count}")
 

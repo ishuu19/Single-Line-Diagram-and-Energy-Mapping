@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -22,7 +23,7 @@ import time
 
 from huggingface_hub import hf_hub_download, snapshot_download
 from huggingface_hub.errors import HfHubHTTPError
-from PIL import Image
+from PIL import Image, ImageOps
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 OUT_DIR = REPO_ROOT / "Data" / "component-symbols-test"
@@ -43,8 +44,8 @@ SLD_TYPES = [
     # hand-drawn types from Synthetic Data/_tools/symbols_extra.mjs (ids 40-63)
     "panel", "feeder", "ct_test_block", "fused_voltage_block", "dc_supply", "contact_no", "contact_nc",
     "terminal_block", "chiller", "aux_load", "battery", "inverter", "rectifier", "ev_charger", "soft_starter",
-    "reactor", "ground", "ngr", "static_switch", "pushbutton", "pilot_light", "overload", "disconnect_fused", "coil",
-    "compressor", "heat_exchanger",
+    "reactor", "ground", "ngr", "static_switch", "pushbutton", "pilot_light", "overload", "disconnect_fused",
+    "compressor", "heat_exchanger", "coil",  # order must match Data/component-symbols/classes.txt
 ]
 TEXT_CLASS = "text"
 CLASSES = SLD_TYPES + [TEXT_CLASS]
@@ -131,6 +132,17 @@ def hf_fetch(rel_path: str, retries: int = 6) -> Path | None:
     return None
 
 
+def load_sheet(path: Path, voc_size: tuple[int, int]) -> Image.Image:
+    """RGB sheet, EXIF-upright. Falls back to the stored pixels only when the VOC size matches those and not the upright ones."""
+    with Image.open(path) as raw:
+        upright = ImageOps.exif_transpose(raw)
+        use = raw if (voc_size[0] and upright.size != voc_size and raw.size == voc_size) else upright
+        rgb = use.convert("RGB")
+        if upright is not raw:
+            upright.close()
+    return rgb
+
+
 def collect_annotations(root: Path) -> list[Path]:
     return sorted(root.glob("drafter_*/annotations/*.xml"))
 
@@ -180,7 +192,7 @@ def main():
     parser.add_argument(
         "--refresh",
         action="store_true",
-        help="Delete existing images/test and labels/test before writing",
+        help="Delete existing images/test, images/test_raw and labels/test before writing",
     )
     parser.add_argument(
         "--local-images-only",
@@ -200,6 +212,10 @@ def main():
     if not args.dry_run:
         img_out = OUT_DIR / "images" / "test"
         lbl_out = OUT_DIR / "labels" / "test"
+        # images/test is about to hold fresh raw crops, so normalise_test_crops.py's raw backup is stale either way
+        raw_backup = OUT_DIR / "images" / "test_raw"
+        if raw_backup.is_dir():
+            shutil.rmtree(raw_backup)
         if args.refresh and OUT_DIR.exists():
             for sub in (img_out, lbl_out):
                 if sub.is_dir():
@@ -215,7 +231,7 @@ def main():
         if args.max_crops and crop_idx >= args.max_crops:
             break
         xml_text = ann_path.read_text(encoding="utf-8")
-        filename, _, _, objects = parse_voc_objects(xml_text)
+        filename, voc_w, voc_h, objects = parse_voc_objects(xml_text)
         if not filename:
             continue
         image_path = annotation_to_image_path(ann_path, filename)
@@ -239,9 +255,9 @@ def main():
 
         cache_key = str(image_path)
         if cache_key not in image_cache:
-            image_cache[cache_key] = Image.open(image_path).convert("RGB")
+            image_cache[cache_key] = load_sheet(image_path, (voc_w, voc_h))
             if len(image_cache) > 32:
-                image_cache.pop(next(iter(image_cache)))
+                image_cache.pop(next(iter(image_cache))).close()
 
         image = image_cache[cache_key]
         iw, ih = image.size
@@ -256,6 +272,8 @@ def main():
 
             crop = image.crop((x0, y0, x1, y1))
             cw, ch = crop.size
+            gray = crop.convert("L")
+            crop.close()
             inner = (
                 obj["bbox"][0] - x0,
                 obj["bbox"][1] - y0,
@@ -264,8 +282,8 @@ def main():
             )
             stem = f"cghd_{crop_idx:05d}"
             png_path = OUT_DIR / "images" / "test" / f"{stem}.png"
-            gray = crop.convert("L")
             gray.save(png_path)
+            gray.close()
 
             label_line = yolo_symbol_line(sld_type, cw, ch, inner)
             (OUT_DIR / "labels" / "test" / f"{stem}.txt").write_text(label_line + "\n")
@@ -283,6 +301,10 @@ def main():
                 }
             )
             crop_idx += 1
+
+    for cached in image_cache.values():
+        cached.close()
+    image_cache.clear()
 
     if args.dry_run:
         print(f"Mappable crops (estimate): {crop_idx}")

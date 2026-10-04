@@ -4,6 +4,7 @@ import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+import numpy as np
 import yaml
 
 from config import DATA_YAML, GRAPHS_DIR, JUNCTION_CLASS, SHEETS_DIR, TEXT_CLASS
@@ -58,8 +59,36 @@ def to_px(box, graph):
     """SVG-unit box -> PNG pixels. The SVG canvas has a title band above the layout, so y is
     shifted by image.y_offset units (12 on every sheet) before the png_scale (2)."""
     s = graph["image"]["png_scale"]
+    dx = graph["image"].get("x_offset", 0.0)
     dy = graph["image"].get("y_offset", 0.0)
-    return [box[0] * s, (box[1] + dy) * s, box[2] * s, (box[3] + dy) * s]
+    return [(box[0] + dx) * s, (box[1] + dy) * s, (box[2] + dx) * s, (box[3] + dy) * s]
+
+
+def from_px(v, image_info=None):
+    """Inverse of to_px: PNG pixels -> SVG units, for a box [x0, y0, x1, y1] or a point [x, y].
+    image_info is graph.json's `image` block (or the whole graph); missing keys default to scale 2, no offset."""
+    info = (image_info or {}).get("image", image_info) or {}
+    s = info.get("png_scale", 2)
+    dx, dy = info.get("x_offset", 0.0), info.get("y_offset", 0.0)
+    if len(v) == 2:
+        return [v[0] / s - dx, v[1] / s - dy]
+    return [v[0] / s - dx, v[1] / s - dy, v[2] / s - dx, v[3] / s - dy]
+
+
+def flatten_white(image):
+    """PIL image -> 'L' or 'RGB' with any transparency composited over white (the sheet background).
+    Palette / LA / PA images otherwise turn their transparent pixels black on convert("L"); 16-bit
+    greyscale is rescaled to 0-255 instead of clipped."""
+    from PIL import Image
+    if image.mode in ("L", "RGB"):
+        return image
+    if image.mode in ("I;16", "I;16B", "I;16L", "I", "F"):
+        arr = np.asarray(image, dtype=np.float32)
+        if arr.size and arr.max() > 255:
+            arr = arr / 257.0
+        return Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8), "L")
+    rgba = image.convert("RGBA")
+    return Image.alpha_composite(Image.new("RGBA", rgba.size, (255, 255, 255, 255)), rgba).convert("RGB")
 
 
 def svg_canvas(svg_path):
@@ -94,6 +123,8 @@ def gt_detections(graph, classes):
     for n in graph["nodes"]:
         for t in n.get("text_labels", []):
             dets.append({"type": TEXT_CLASS, "bbox": to_px(t["bbox"], graph), "conf": 1.0, "text": t["text"]})
+    for t in graph.get("texts", []):      # title and edge (cable / rating) labels; only in graphs regenerated after 2026-10-04
+        dets.append({"type": TEXT_CLASS, "bbox": to_px(t["bbox"], graph), "conf": 1.0, "text": t["text"]})
     return dets
 
 

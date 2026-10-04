@@ -1,6 +1,6 @@
 # Status
 
-Updated: 2026-10-01 (v3 batch)
+Updated: 2026-10-04 (audit fixes; rebuild + retrain pending)
 
 ## Now
 
@@ -25,6 +25,8 @@ Synthetic corpus exists and is the development set. Real sheets are the untouche
 - **v2 corpus (2026-10-01):** all `GEN-*` telemetry cut to the first **5 days** (`_tools/truncate_telemetry.mjs`; core `PLANT-*` still 30 d; `GEN-2542` has no readable telemetry). 1,471 new plants `GEN-LR-####` (left-to-right) and `GEN-RL-####` (right-to-left), 5-day CSVs, drawn natively by `_tools/horizontal.mjs` (Schematex is top-down only, so its layout is re-composed: symbols lie along the flow, text upright; not a rotated image). `graph.json` has `image.direction` (TB/LR/RL). Generate with `node generate.mjs --horizontal --gen-range a-b --days 5`. Sheets: `Data/sld-sheets-v2/` (10,628 sheets: 9,010/1,031/587 train/val/test, 23 classes) + `Data/sld-sheets-v2.zip` (gitignored, archive root `sld-sheets-v2/`). Stage B notebook/job now attach `anayedeshan/sld-sheets-v2` (not yet uploaded) and pass an explicit `AUG` dict. `wires.py` not yet re-scored on horizontal sheets.
 - **v3 batch (2026-10-01):** +**40,000** crops appended to `Data/component-symbols/images/train/` (`<type>_v3_NNNN`, 606 per type, 66 types, labels + `manifest.jsonl` rows added; train split only, so `component-symbols.zip` and the Kaggle copy are stale). Made by `_tools/components_v3.mjs` from `symbols_v3.mjs`: 20 MIT symbols vendored from NovaShang/sldeditor (`_tools/third_party/sldeditor/`), new hand-drawn alternatives, labelled boxes/circles, plus per-symbol stretch and line caps. **Not used:** sldeditor's other 74 symbols (QElectroTech, ML-training use forbidden) and smartsld.com (no API/terms for bulk use). +**3,011** plants `GEN-V3-{TB,LR,RL}-####` (`plants.v3.mjs`, `generate.mjs --v3`, 5-day CSVs; 89 layouts were unroutable and skipped), appended to `Data/sld-sheets-v2/` via `_add_v3_sheets.py`: now 13,639 sheets (train/val/test +2,571/294/146). Sheet drawings still use Schematex/`horizontal.mjs` symbols, not the new crop styles. `sld-sheets-v2.zip` not rebuilt. `wires.py` not re-scored. Notebook `notebooks/kaggle-sld-pipeline-v3.ipynb` (job `sld-pipeline-v3`, `COMP_EPOCHS=30`, `SLD_EPOCHS=60`, `EVAL_N=150`) is thin: its code lives in `src/Object Detection/nbkit/` (push before running on Kaggle, the notebook clones the repo). Datasets are found by content, not owner or name. Smoke-tested locally on a repo copy (50 cells, training skipped); never run on Kaggle. Needs the crop and sheets-v2 datasets re-uploaded with v3. Audit fixes (2026-10-02): classifier early stopping now uses a 3% hash-carved slice of train, the manifest `test` split is report-only (`evaluate.py --split test`); Part A trains a new `v3` model and keeps whichever of `v3_best` / `custom_best` scores better on held-out crops; 180-degree turn (`RandomHalfTurn`) and ZOOM 0.2 added to crop augmentation (not yet retrained); `graph_eval` can score by location only (`typed=False`) with `node_type_accuracy`, and the notebook reports tracer-only / detector / +classifier per direction; `wires.py` keeps a short wire stub that joins two symbols (RL edge recall 0.76 to 0.78 with true boxes); `reclassify` micro-batches; `train_sld.train` takes live-bar callbacks. Open: CT-to-meter dashed links are missed about half the time in every direction (tracer, true boxes); no confidence calibration, class weighting or crop fine-tuning on sheet crops; `flipud`/mixup/copy-paste left as set. `Data/component-symbols/manifest.jsonl` had 40,000 duplicate v3 rows (two generator runs appended); deduped to 140,056 rows.
 
+- **Audit fixes (2026-10-04, code only, not yet rebuilt or retrained):** sheet split is now by graph structure (was per-sheet id; ~41% val / 46% test sheets had a same-topology twin in train), detector classes fixed at 42 (`config.DETECTOR_CLASSES`), offsets read from the SVG, title and edge labels exported as `graph.texts` and labelled `text`, duplicate labels removed. Crop generators hold out one drawing per type (pool >= 3) for val/test and emit a `val` split; v3 crops now also go to val/test. Metrics: edge precision capped by distinct pairs, net Jaccard counts missed members (micro over nets), `node_typed_recall` added, typed `node_type_accuracy` is NaN. Detector: no rotation/flips, agnostic NMS, trains in a child process with live bars. Classifier: uint8 cache, `<tag>.names.json` per checkpoint, half-turn only for 9 point-symmetric classes, checkpoint and early stop on `val_loss`. All earlier scores in this file used the old split and metrics.
+
 ## Not started
 
 - Annotation of the four real sheets (`Electric Sample Data/drawings/plant.pdf` only; no ground-truth JSON).
@@ -33,11 +35,14 @@ Synthetic corpus exists and is the development set. Real sheets are the untouche
 
 ## Next
 
-Upload the 100k `Data/component-symbols/` to Kaggle, retrain with `EPOCHS = 30` (the 36% → 72% printed-test results argue for 180° and wider scale/stroke augmentation at the same time), re-score `--split printed-test` on the 198-crop set. Kaggle run on the 64-class set reached 72% printed-test. CGHD stays as the harder, hand-drawn check. Full-sheet labels are in `Data/sld-sheets/` and `Data/sld-sheets.zip`. Stage A on Kaggle loads the committed `Component Training/models/custom_best.keras` (same file as `F:/sld_pipeline_artifacts.zip`; val 0.998 / printed-test 0.924) and does not retrain. Stage B trains with rotation and the rest of the YOLO augmentations. Run with `python src/kaggle_runner/run.py sld-pipeline`. Real sheets stay held out.
+1. Regenerate corpus graphs (`node generate.mjs --core/--gen/--horizontal/--v3`) so `graph.texts` exists.
+2. Regenerate crops (`node components_all.mjs --per 1516 --test 1000`, then `node components_v3.mjs --total 40000`).
+3. Rebuild sheets into a new folder (`python _pack_sld_sheets.py <dest>`); old `sld-sheets*` use compacted ids.
+4. Re-upload, retrain both models, re-score. Real sheets stay held out.
 
 ## Conventions that affect results
 
 - Edge types: `power` | `measurement` | `control` (bulk graphs may also use `protection`). Dashed line = measurement. Filled dot = junction; bare crossing = no edge.
 - Score extraction against `attributes` (printed on the drawing). `metadata` is not drawn.
-- `bbox` in `graph.json` is SVG user units. Pixel bbox = bbox × `image.png_scale` (2).
+- `bbox` in `graph.json` is SVG user units. Pixel bbox = (bbox + offset) × `image.png_scale` (2); offsets in `image.x_offset`/`y_offset`.
 - Real sheets are test-only until the final transfer eval.

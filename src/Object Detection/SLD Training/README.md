@@ -26,11 +26,11 @@ Pipeline copied from AITEE and CircuitNet (see `docs/detection.md`, `docs/Inspir
 python build_sld_dataset.py            # Synthetic Data/GEN-* → Data/sld-sheets (≈130 MB)
 ```
 
-Split by sheet id hash: 85 % train, 10 % val, 5 % test; `PLANT-*` sheets are test when present. Classes are the symbol types that occur in the corpus (20 today) plus `junction` and `text`, written to `data.yaml`. Upload `Data/sld-sheets/` to Kaggle as one dataset.
+Split by structure (hash of sorted node types and edge relationships), so a plant and its same-topology twins land in one split: 85 % train, 10 % val, 5 % test; `PLANT-*` sheets are test when present. `--split-by id` restores the old per-sheet hash. Classes are fixed: all 40 `SYMBOL_ORDER` types plus `junction` and `text` (nc 42), whether or not a type occurs; `build_info.json` records the split rule. Datasets built before 2026-10-04 use compacted ids and must be rebuilt. Upload `Data/sld-sheets/` to Kaggle as one dataset.
 
 Two facts about the corpus that the code handles and that are easy to get wrong:
 
-- `graph.json` boxes are SVG units; pixels are `x * 2, (y + 12) * 2`. The 12-unit shift is the title band above the layout (SVG canvas 841 tall, `image.height` 829). The builder stores it as `image.y_offset`.
+- `graph.json` boxes are SVG units; pixels are `(x + x_offset) * 2, (y + y_offset) * 2`. The offset is the title band above the layout, read from the SVG's outer `translate(...)` (12 on the sheets probed, but not guaranteed for horizontal layouts). The builder stores it as `image.y_offset` / `image.x_offset`; `sld_data.from_px` is the inverse.
 - A bus node's `bbox` is a 40×40 box at the bar centre. The builder reads the drawn bar from the SVG (`bbox_draw`).
 
 ## Wire tracer (`wires.py`)

@@ -4,7 +4,8 @@ Score a recovered graph against graph.json.
   nodes : predicted symbol matched to a GT node when same type and IoU >= MATCH_IOU (greedy by IoU)
   edges : GT edge counted when an edge exists between the two matched predictions
   types : of the matched edges, how many carry the right relationship (power / measurement)
-  nets  : GT nets (node sets from graph.json `nets`) vs predicted nets, best-match Jaccard
+  nets  : GT nets (node sets from graph.json `nets`) vs predicted nets, best-match Jaccard in GT-id space,
+          averaged over all GT nets of all sheets
 
   python graph_eval.py --split test              # oracle boxes from ground truth -> tests the tracer alone
   python graph_eval.py --split test --pred DIR   # DIR/<id>.json predicted graphs (from predict_graph.py)
@@ -66,38 +67,52 @@ def gt_nets(graph):
 def score_sheet(graph, pred, typed=True):
     """pred: {"symbols": [{type,bbox(px)}], "edges": [{a,b,relationship}], "nets": [{members}]}.
 
-    typed=False scores localisation only (see match_nodes) and adds `nodes_type_ok`, the matched
-    nodes whose type is also right."""
+    typed=False scores localisation only (see match_nodes). `nodes_type_ok` always counts the location-matched
+    nodes whose type is also right, so node_typed_recall means the same thing under either rule."""
     m = match_nodes(graph["nodes"], pred["symbols"], graph, typed=typed)
-    type_ok = sum(graph["nodes"][gi]["type"] == pred["symbols"][pi]["type"] for gi, pi in m.items())
+    m_loc = m if not typed else match_nodes(graph["nodes"], pred["symbols"], graph, typed=False)
+    type_ok = sum(graph["nodes"][gi]["type"] == pred["symbols"][pi]["type"] for gi, pi in m_loc.items())
     node_ids = [n["id"] for n in graph["nodes"]]
     pred_of = {node_ids[gi]: pi for gi, pi in m.items()}
+    gt_of = {pi: node_ids[gi] for gi, pi in m.items()}
 
-    pred_edges = {}
+    # one predicted edge per node pair (the tracer may emit power + measurement on the same pair: kept as a set)
+    pred_edges = defaultdict(set)
     for e in pred["edges"]:
-        pred_edges[frozenset((e["a"], e["b"]))] = e["relationship"]
-    edge_hit = type_hit = 0
+        pred_edges[frozenset((e["a"], e["b"]))].add(e["relationship"])
+    # each predicted pair is hit at most once, so precision stays <= 1 with duplicate GT edges on one pair;
+    # GT edges whose relationship the pair carries go first so the one hit is the right-typed one
+    cand = []
     for e in graph["edges"]:
         a, b = pred_of.get(e["source"]), pred_of.get(e["target"])
-        if a is None or b is None:
+        if a is None or b is None or frozenset((a, b)) not in pred_edges:
             continue
-        rel = pred_edges.get(frozenset((a, b)))
-        if rel is not None:
-            edge_hit += 1
-            type_hit += rel == e["relationship"]
+        pair = frozenset((a, b))
+        cand.append((e["relationship"] not in pred_edges[pair], pair, e["relationship"]))
+    edge_hit = type_hit = 0
+    used = set()
+    for wrong, pair, rel in sorted(cand, key=lambda c: c[0]):
+        if pair in used:
+            continue
+        used.add(pair)
+        edge_hit += 1
+        type_hit += not wrong
 
+    # nets compared in GT-id space: a predicted member maps back to its GT node, or stays a false positive;
+    # a GT member with no matched prediction stays in the GT set, so dropped nodes lower the score
     gnets = gt_nets(graph)
-    pnets = [set(n["members"]) for n in pred["nets"]]
+    pnets = [{gt_of.get(p, ("FP", p)) for p in n["members"]} for n in pred["nets"]]
     jac = []
     for members in gnets.values():
-        pm = {pred_of[i] for i in members if i in pred_of}
-        best = max((len(pm & p) / len(pm | p) for p in pnets if pm | p), default=0.0)
+        best = max((len(members & p) / len(members | p) for p in pnets if members | p), default=0.0)
         jac.append(best)
 
     return {
+        "typed": bool(typed),
         "nodes_gt": len(graph["nodes"]), "nodes_pred": len(pred["symbols"]), "nodes_matched": len(m), "nodes_type_ok": type_ok,
-        "edges_gt": len(graph["edges"]), "edges_pred": len(pred["edges"]), "edges_hit": edge_hit, "edge_type_hit": type_hit,
-        "nets_gt": len(gnets), "net_jaccard": float(np.mean(jac)) if jac else 1.0,
+        "edges_gt": len(graph["edges"]), "edges_pred": len(pred_edges), "edges_hit": edge_hit, "edge_type_hit": type_hit,
+        "nets_gt": len(gnets), "net_jaccard_sum": float(sum(jac)),
+        "net_jaccard": float(np.mean(jac)) if jac else float("nan"),  # no GT nets: undefined, not a perfect 1.0
     }
 
 
@@ -106,16 +121,20 @@ def summarise(rows):
     for r in rows:
         for k, v in r.items():
             tot[k] += v
-    n = max(1, len(rows))
+    nan = float("nan")
+    typed = any(r.get("typed", True) for r in rows)
     return {
         "sheets": len(rows),
         "node_precision": tot["nodes_matched"] / max(1, tot["nodes_pred"]),
         "node_recall": tot["nodes_matched"] / max(1, tot["nodes_gt"]),
-        "node_type_accuracy": tot["nodes_type_ok"] / max(1, tot["nodes_matched"]),
+        # type-gated matching makes every matched node right by construction: report NaN, not a fake 1.0
+        "node_type_accuracy": nan if typed else tot["nodes_type_ok"] / max(1, tot["nodes_matched"]),
+        "node_typed_recall": tot["nodes_type_ok"] / max(1, tot["nodes_gt"]),
         "edge_precision": tot["edges_hit"] / max(1, tot["edges_pred"]),
         "edge_recall": tot["edges_hit"] / max(1, tot["edges_gt"]),
         "edge_type_accuracy": tot["edge_type_hit"] / max(1, tot["edges_hit"]),
-        "net_jaccard": tot["net_jaccard"] / n,
+        # micro over GT nets: a sheet with many nets weighs more, a sheet with none adds nothing
+        "net_jaccard": tot["net_jaccard_sum"] / tot["nets_gt"] if tot["nets_gt"] else nan,
     }
 
 

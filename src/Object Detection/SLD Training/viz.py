@@ -49,42 +49,39 @@ def show_labels(image, graph, classes, title=""):
 
 
 def show_identified(image, graph, symbols, classes, title="", iou=MATCH_IOU):
-    """Write 'guess A | true B' on each symbol. Green when they match, red when they do not."""
-    from sld_data import box_iou, gt_detections
-    gt = [d for d in gt_detections(graph, classes) if d["type"] not in (JUNCTION_CLASS, TEXT_CLASS)]
+    """Write 'guess A | true B' on each symbol. Green when they match, red when they do not.
+
+    Boxes are paired by graph_eval.match_nodes(typed=False), the same rule the location-only scores use.
+    `iou` is kept for old callers; the threshold is config.MATCH_IOU."""
+    from graph_eval import match_nodes
+    from sld_data import to_px
+    gt = [n for n in graph["nodes"] if n["type"] in classes and n["type"] not in (JUNCTION_CLASS, TEXT_CLASS)]
     preds = [d for d in symbols if d["type"] not in (JUNCTION_CLASS, TEXT_CLASS)]
-    used = set()
-    correct = wrong = 0
+    m = match_nodes(gt, preds, graph, typed=False)
+    true_of = {pi: gt[gi]["type"] for gi, pi in m.items()}
+    correct = misclassified = false_pos = 0
     fig, ax = plt.subplots(figsize=(14, 18))
     ax.imshow(np.asarray(image.convert("L")), cmap="gray")
-    for d in preds:
-        best_i, best = None, 0.0
-        for i, g in enumerate(gt):
-            if i in used:
-                continue
-            score = box_iou(d["bbox"], g["bbox"])
-            if score > best:
-                best_i, best = i, score
-        true = "?"
-        if best_i is not None and best >= iou:
-            used.add(best_i)
-            true = gt[best_i]["type"]
+    for pi, d in enumerate(preds):
+        true = true_of.get(pi)
         ok = true == d["type"]
         correct += ok
-        wrong += not ok
+        misclassified += true is not None and not ok
+        false_pos += true is None
         x0, y0, x1, y1 = d["bbox"]
         color = "tab:green" if ok else "tab:red"
         ax.add_patch(plt.Rectangle((x0, y0), x1 - x0, y1 - y0, fill=False, lw=2, ec=color))
-        _tag(ax, x0, y0, f"guess {d['type']} | true {true}", color)
+        _tag(ax, x0, y0, f"guess {d['type']} | true {true or 'nothing'}", color)
     missed = 0
-    for i, g in enumerate(gt):
-        if i in used:
+    for gi, g in enumerate(gt):
+        if gi in m:
             continue
         missed += 1
-        x0, y0, x1, y1 = g["bbox"]
+        x0, y0, x1, y1 = to_px(g.get("bbox_draw", g["bbox"]), graph)
         ax.add_patch(plt.Rectangle((x0, y0), x1 - x0, y1 - y0, fill=False, lw=1.5, ec="tab:orange", ls="--"))
         _tag(ax, x0, y0, f"missed | true {g['type']}", "tab:orange")
-    ax.set_title(f"{title}  {correct}/{len(gt)} correct, {wrong} wrong, {missed} missed")
+    ax.set_title(f"{title}  {correct}/{len(gt)} correct, {misclassified} misclassified, {false_pos} false positives, {missed} missed")
     ax.axis("off")
     plt.tight_layout()
-    return fig, {"correct": correct, "wrong": wrong, "missed": missed, "gt": len(gt)}
+    return fig, {"correct": correct, "wrong": misclassified + false_pos, "misclassified": misclassified,
+                 "false_pos": false_pos, "missed": missed, "gt": len(gt)}

@@ -44,6 +44,22 @@ ROTATION = 0.03
 ZOOM = 0.2
 TRANSLATION = 0.08
 HALF_TURN = 0.25   # chance a crop is turned 180 deg (printed-test failures were mostly 180 deg symbols)
+# Half-turns are applied in tf.data only to these types. A 180 deg turn swaps primary/secondary
+# (transformer_dy <-> yd), flips direction (diode, rectifier, load arrow, feeder), polarity
+# (battery, capacitor plate, CT/PT dots), open/closed contact slants, ground/arrester orientation,
+# and turns letter glyphs (M, G, kWh, relay numbers) upside down. Keep this list to symbols whose
+# drawing is point-symmetric and has no orientation-paired sibling class.
+HALF_TURN_SAFE = (
+    "transformer",      # two plain winding circles
+    "transformer_yy",   # same winding on both sides
+    "transformer_dd",
+    "bus",              # straight bar
+    "bus_tie",          # breaker between two bus sections
+    "breaker",          # box / crossed contact inline on a line
+    "fuse",             # rectangle on a line
+    "terminal_block",   # row of identical terminals
+    "panel",            # dashed enclosure
+)
 CONTRAST = 0.3
 # scan degradation: stand-in for photographed / photocopied real sheets
 NOISE = 0.05
