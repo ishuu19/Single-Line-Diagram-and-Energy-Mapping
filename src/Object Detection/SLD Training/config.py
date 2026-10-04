@@ -45,7 +45,7 @@ TEST_PREFIX = "PLANT-"
 
 # Detector
 IMG_SIZE = 1280
-EPOCHS = 60
+EPOCHS = 25
 BATCH = 8
 MODEL_WEIGHTS = "yolov8s.pt"
 CONF = 0.25

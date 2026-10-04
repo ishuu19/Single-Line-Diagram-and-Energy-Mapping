@@ -18,7 +18,7 @@ BATCH_SIZE = 32
 SEED = 123
 
 # cosine decay runs to EPOCHS; keep it short enough to finish, early stopping is only a safety net
-EPOCHS = 80
+EPOCHS = 30
 WARMUP_EPOCHS = 5
 EARLY_STOP_PATIENCE = 30
 FREEZE_EPOCHS = 10  # backbone runs: head-only warmup before unfreezing
