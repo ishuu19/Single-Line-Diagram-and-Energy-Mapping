@@ -1,6 +1,6 @@
 # Status
 
-Updated: 2026-10-04 (audit fixes; rebuild + retrain pending)
+Updated: 2026-10-04 (audit fixes, datasets rebuilt; retrain pending)
 
 ## Now
 
@@ -35,10 +35,7 @@ Synthetic corpus exists and is the development set. Real sheets are the untouche
 
 ## Next
 
-1. Regenerate corpus graphs (`node generate.mjs --core/--gen/--horizontal/--v3`) so `graph.texts` exists.
-2. Regenerate crops (`node components_all.mjs --per 1516 --test 1000`, then `node components_v3.mjs --total 40000`).
-3. Rebuild sheets into a new folder (`python _pack_sld_sheets.py <dest>`); old `sld-sheets*` use compacted ids.
-4. Re-upload, retrain both models, re-score. Real sheets stay held out.
+Datasets rebuilt 2026-10-04 (`Data/releases/2026-10-04/`, see `VERSIONS.md` there): `sld-sheets-v3` 13,639 sheets (11,634/1,226/779, structure split, 42 classes) and `component-symbols` v4 140,056 crops (134,056/3,000/3,000). Upload both to Kaggle/Drive, retrain classifier and detector, re-score. Real sheets stay held out.
 
 ## Conventions that affect results
 
