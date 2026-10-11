@@ -175,7 +175,7 @@ def load_yolo(model):
 
 
 def train(data_yaml=DATA_YAML, model=MODEL_WEIGHTS, epochs=EPOCHS, imgsz=IMG_SIZE, batch=BATCH, name="sld", project=None,
-          translate=0.2, shear=5.0, perspective=0.001, mixup=0.15, copy_paste=0.1,
+          translate=0.2, shear=5.0, perspective=0.001, mixup=0.15, copy_paste=0.0,
           degrees=0.0, fliplr=0.0, flipud=0.0, scale=0.5, callbacks=None, report=True, verbose=True, workers=8, progress=None,
           resume=False):
     """callbacks: {ultralytics event: function(trainer)} (a notebook's live bars). report=False drops the per-epoch print.

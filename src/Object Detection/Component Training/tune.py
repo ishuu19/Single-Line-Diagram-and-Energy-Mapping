@@ -115,7 +115,8 @@ def main():
     # drop tuner bookkeeping (Hyperband's tuner/epochs, tuner/bracket, ...) so train.py --hp gets model keys only
     best = {k: v for k, v in tuner.get_best_hyperparameters(1)[0].values.items() if k in DEFAULT_HP}
     (OUTPUT_DIR / f"{tag}_best_hp.json").write_text(json.dumps(best, indent=2))
-    trials = [{"score": t.score, **t.hyperparameters.values} for t in tuner.oracle.get_best_trials(args.trials)]
+    n_best = args.trials if args.mode == "near" else 10      # --trials only sets the Bayesian budget
+    trials = [{"score": t.score, **t.hyperparameters.values} for t in tuner.oracle.get_best_trials(n_best)]
     (OUTPUT_DIR / f"{tag}_{args.mode}_trials.json").write_text(json.dumps(trials, indent=2))
     tuner.results_summary(num_trials=5)
 

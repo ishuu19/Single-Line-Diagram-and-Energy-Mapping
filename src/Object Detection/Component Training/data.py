@@ -19,11 +19,11 @@ from config import (
 
 
 def load_class_names():
-    return CLASSES_PATH.read_text().splitlines()
+    return CLASSES_PATH.read_text(encoding="utf-8").splitlines()
 
 
 def read_manifest(path=MANIFEST_PATH):
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         return [json.loads(line) for line in f if line.strip()]
 
 
@@ -186,7 +186,7 @@ def rows_from_yolo_labels(data_dir=TEST_DATA_DIR, split="test"):
     Ids index `data_dir/classes.txt` when shipped (its own order), else the training classes.txt."""
     train_names = load_class_names()
     local = data_dir / "classes.txt"
-    names = local.read_text().splitlines() if local.is_file() else train_names
+    names = local.read_text(encoding="utf-8").splitlines() if local.is_file() else train_names
     names = [n.strip() for n in names if n.strip()]
     unknown = sorted(set(names) - set(train_names))
     assert not unknown, f"{local} has classes the training vocabulary lacks: {unknown}"
@@ -194,7 +194,7 @@ def rows_from_yolo_labels(data_dir=TEST_DATA_DIR, split="test"):
         print(f"note: {local} orders classes differently from {CLASSES_PATH}; ids are mapped by name")
     rows = []
     for label in sorted((data_dir / "labels" / split).glob("*.txt")):
-        first = label.read_text().strip().splitlines()
+        first = label.read_text(encoding="utf-8").strip().splitlines()
         if not first:
             continue
         cid = int(first[0].split()[0])

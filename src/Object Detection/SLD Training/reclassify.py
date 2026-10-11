@@ -41,12 +41,16 @@ def _component_module(name):
 
 
 def load_classifier(weights: Path | None = None):
-    """Returns (keras model, class names). Default weights: Component Training/models/<custom_best|custom|notebook_best>.keras."""
+    """Returns (keras model, class names). Default weights: Component Training/models/<v3_best|custom_best|custom|notebook_best>.keras."""
     import tensorflow as tf
     _component_module("model")  # registers RandomDegrade for load_model
     models_dir = COMPONENT_DIR / "models"
     if weights is None:
-        weights = next(models_dir / f"{t}.keras" for t in ("custom_best", "custom", "notebook_best") if (models_dir / f"{t}.keras").exists())
+        tags = ("v3_best", "custom_best", "custom", "notebook_best")
+        weights = next((models_dir / f"{t}.keras" for t in tags if (models_dir / f"{t}.keras").exists()), None)
+        if weights is None:
+            raise FileNotFoundError(f"no classifier in {models_dir}: looked for {', '.join(t + '.keras' for t in tags)}. "
+                                    "Train Part A, or attach a models dataset that holds the .keras file.")
     weights = Path(weights)
     net = tf.keras.models.load_model(str(weights), compile=False)
     # the names written with this checkpoint win over the folder-wide list, which a later run may have overwritten
@@ -73,7 +77,9 @@ def _crop(gray: np.ndarray, box, size=128):
     if x1 <= x0 or y1 <= y0:  # off-sheet or degenerate box: resize_with_pad would raise and lose the whole batch
         return None
     crop = 255.0 - gray[y0:y1, x0:x1].astype(np.float32)          # same inversion as data._load_image
-    return tf.image.resize_with_pad(crop[..., None], size, size).numpy()
+    # same as data._decode_uint8: antialiased resize, rounded to whole grey levels
+    out = tf.image.resize_with_pad(crop[..., None], size, size, antialias=True)
+    return tf.round(tf.clip_by_value(out, 0.0, 255.0)).numpy()
 
 
 def reclassify(image, detections, classifier, min_conf=MIN_CONF, batch_size=64):

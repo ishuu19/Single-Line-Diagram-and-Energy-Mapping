@@ -220,7 +220,8 @@ def score_sets(clf, names, sets, batch=128, labels=None):
     def prep(path):
         with Image.open(path) as im:
             gray = np.asarray(im.convert("L")).astype(np.float32)
-        return tf.image.resize_with_pad((255.0 - gray)[..., None], size, size).numpy()    # same inversion as training
+        out = tf.image.resize_with_pad((255.0 - gray)[..., None], size, size, antialias=True)    # same inversion and resize as training
+        return tf.round(tf.clip_by_value(out, 0.0, 255.0)).numpy()
 
     label_of = (lambda f: labels.get(str(f))) if labels else true_label
     out = {}

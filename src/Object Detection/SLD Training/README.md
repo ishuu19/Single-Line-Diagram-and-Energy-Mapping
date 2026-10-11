@@ -8,7 +8,7 @@ Pipeline copied from AITEE and CircuitNet (see `docs/detection.md`, `docs/Inspir
 
 | File | Role |
 |---|---|
-| `config.py` | Paths (`Data/sld-sheets`), detector classes, split fractions, YOLO and tracer constants |
+| `config.py` | Paths (`Data/sld-sheets-v3`), detector classes, split fractions, YOLO and tracer constants |
 | `build_sld_dataset.py` | Synthetic plants → YOLO dataset. Boxes from `graph.json` (bus box taken from the SVG bar), junction dots, text labels. Adds the SVG→PNG y offset to the graph copies |
 | `sld_data.py` | data.yaml / label / graph readers, `to_px` coordinate transform, ground-truth detections |
 | `wires.py` | Image + boxes → nets and edges (see below) |
@@ -17,16 +17,16 @@ Pipeline copied from AITEE and CircuitNet (see `docs/detection.md`, `docs/Inspir
 | `predict_graph.py` | Detector + tracer → predicted graph per sheet |
 | `viz.py` | Draw boxes and recovered edges on a sheet |
 | `reclassify.py` | Re-labels each detected symbol crop with the Component Training classifier (66 types); imports that folder's modules without clobbering this one's `config` |
-| `notebooks/kaggle_sld_pipeline.ipynb` | **Main Kaggle runner.** Stage A trains / evaluates the component classifier, Stage B trains the sheet detector, traces wires and re-labels crops with Stage A; both models saved under `/kaggle/working/sld_pipeline/models` for reuse (`COMP_EPOCHS = 0` / `SLD_EPOCHS = 0` skip training and reuse) |
-| `notebooks/kaggle_sld_training.ipynb` | Stage B only |
+| `notebooks/kaggle-sld-pipeline-v3.ipynb` | **Main Kaggle/Colab runner** (code in `../nbkit/`). Stage A trains / evaluates the component classifier, Stage B trains the sheet detector, traces wires and re-labels crops with Stage A; both models saved under `/kaggle/working/sld_pipeline/models` for reuse (`COMP_EPOCHS = 0` / `SLD_EPOCHS = 0` skip training and reuse) |
+| `notebooks/kaggle-sld-stage-b.ipynb` | Stage B only |
 
 ## Dataset
 
 ```bash
-python build_sld_dataset.py            # Synthetic Data/GEN-* → Data/sld-sheets (≈130 MB)
+python build_sld_dataset.py            # Synthetic Data/GEN-* → Data/sld-sheets-v3
 ```
 
-Split by structure (hash of sorted node types and edge relationships), so a plant and its same-topology twins land in one split: 85 % train, 10 % val, 5 % test; `PLANT-*` sheets are test when present. `--split-by id` restores the old per-sheet hash. Classes are fixed: all 40 `SYMBOL_ORDER` types plus `junction` and `text` (nc 42), whether or not a type occurs; `build_info.json` records the split rule. Datasets built before 2026-10-04 use compacted ids and must be rebuilt. Upload `Data/sld-sheets/` to Kaggle as one dataset.
+Split by structure (hash of sorted node types and edge relationships), so a plant and its same-topology twins land in one split: 85 % train, 10 % val, 5 % test; `PLANT-*` sheets are test when present. `--split-by id` restores the old per-sheet hash. Classes are fixed: all 40 `SYMBOL_ORDER` types plus `junction` and `text` (nc 42), whether or not a type occurs; `build_info.json` records the split rule. Datasets built before 2026-10-04 use compacted ids and must be rebuilt. Upload `Data/sld-sheets-v3/` to Kaggle as one dataset.
 
 Two facts about the corpus that the code handles and that are easy to get wrong:
 
@@ -50,7 +50,7 @@ With ground-truth boxes on 12 sheets: node P/R 1.0, edge precision 0.97, edge re
 pip install -r requirements.txt
 python build_sld_dataset.py
 python graph_eval.py --split val --limit 20                   # tracer alone, oracle boxes
-python train_sld.py --epochs 60                               # → models/sld_yolov8s.pt
+python train_sld.py --epochs 25                               # → models/sld_yolov8s.pt
 python predict_graph.py --weights models/sld_yolov8s.pt --split test
 python graph_eval.py --split test --pred outputs/pred_test
 ```

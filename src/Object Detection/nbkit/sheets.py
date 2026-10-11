@@ -16,7 +16,7 @@ from .io import free_gpu
 DIRECTIONS = ("TB", "LR", "RL")
 # no rotation and no flips: a 180-degree turn or a mirror changes the class of oriented symbols (transformer_dy vs _yd),
 # and test sheets only differ in layout direction (TB / LR / RL), which the generator already draws
-AUG = dict(degrees=0, fliplr=0.0, flipud=0.0, scale=0.5, translate=0.2, shear=5.0, perspective=0.001, mixup=0.15, copy_paste=0.1)
+AUG = dict(degrees=0, fliplr=0.0, flipud=0.0, scale=0.5, translate=0.2, shear=5.0, perspective=0.001, mixup=0.15)      # copy_paste needs segment masks; the labels are boxes, so it is left off
 MAXSIDE = 900
 METRICS = ["node_recall", "node_type_accuracy", "edge_precision", "edge_recall", "net_jaccard"]
 

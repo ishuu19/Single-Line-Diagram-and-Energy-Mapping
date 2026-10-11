@@ -9,7 +9,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DATA_ROOT = REPO_ROOT / "Data"
 SYNTHETIC_DIR = REPO_ROOT / "Synthetic Data"          # generator output; source of the sheets
-SHEETS_DIR = DATA_ROOT / "sld-sheets"                  # YOLO dataset built by build_sld_dataset.py
+SHEETS_DIR = DATA_ROOT / "sld-sheets-v3"               # YOLO dataset (2026-10-04 release: 42 fixed classes, structure split)
 DATA_YAML = SHEETS_DIR / "data.yaml"
 GRAPHS_DIR = SHEETS_DIR / "graphs"                     # ground-truth graph.json per sheet (pixel boxes added)
 
@@ -45,7 +45,7 @@ TEST_PREFIX = "PLANT-"
 
 # Detector
 IMG_SIZE = 1280
-EPOCHS = 25
+EPOCHS = 25      # the notebook's SLD_EPOCHS uses the same value
 BATCH = 8
 MODEL_WEIGHTS = "yolov8s.pt"
 CONF = 0.25

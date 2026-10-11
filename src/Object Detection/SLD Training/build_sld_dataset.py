@@ -3,10 +3,11 @@ Build the full-sheet YOLO dataset from the synthetic corpus.
 
   python build_sld_dataset.py                 # all plants in Synthetic Data/manifest.json
   python build_sld_dataset.py --limit 50      # quick smoke run
-  python build_sld_dataset.py --refresh       # wipe Data/sld-sheets first
+  python build_sld_dataset.py --refresh       # wipe Data/sld-sheets-v3 first
+  python build_sld_dataset.py --mock          # Synthetic Data/Mock -> Data/Mock/sld-sheets-v3
   python build_sld_dataset.py --split-by id   # old per-sheet-id hash split (default: structure)
 
-Output: Data/sld-sheets/
+Output: Data/sld-sheets-v3/
   images/{train,val,test}/<id>.png     copy of drawings/plant.png
   labels/{train,val,test}/<id>.txt     YOLO boxes: symbols (bus = drawn bar), junctions, text labels
   graphs/<id>.json                     ground truth with `bbox_draw` added to bus nodes
@@ -15,7 +16,7 @@ Output: Data/sld-sheets/
 Classes are always config.DETECTOR_CLASSES (SYMBOL_ORDER + junction, text), so ids are fixed.
 Splits group sheets by struct_key (node-type multiset + edge kinds); PLANT-* are always test.
 
-Upload this folder to Kaggle as the dataset for notebooks/kaggle_sld_training.ipynb.
+Upload this folder to Kaggle as the dataset for notebooks/kaggle-sld-pipeline-v3.ipynb.
 """
 from __future__ import annotations
 
@@ -32,8 +33,18 @@ from pathlib import Path
 from PIL import Image
 
 from config import (
-    DATA_YAML, DETECTOR_CLASSES, GRAPHS_DIR, JUNCTION_CLASS, SHEETS_DIR, SYMBOL_ORDER, SYNTHETIC_DIR, TEST_FRACTION,
-    TEST_PREFIX, TEXT_CLASS, VAL_FRACTION,
+    DATA_ROOT,
+    DATA_YAML,
+    DETECTOR_CLASSES,
+    GRAPHS_DIR,
+    JUNCTION_CLASS,
+    SHEETS_DIR,
+    SYMBOL_ORDER,
+    SYNTHETIC_DIR,
+    TEST_FRACTION,
+    TEST_PREFIX,
+    TEXT_CLASS,
+    VAL_FRACTION,
 )
 from sld_data import svg_bus_extents, to_px, yolo_line
 
@@ -64,8 +75,9 @@ def _hash_split(key: str) -> str:
     return "train"
 
 
-def load_source_graph(pid):
-    return json.loads((SYNTHETIC_DIR / pid / "graph" / "graph.json").read_text(encoding="utf-8"))
+def load_source_graph(pid, synthetic_dir=None):
+    root = synthetic_dir or SYNTHETIC_DIR
+    return json.loads((root / pid / "graph" / "graph.json").read_text(encoding="utf-8"))
 
 
 def split_for(sheet_id: str, g=None, by: str = "structure") -> str:
@@ -79,11 +91,12 @@ def split_for(sheet_id: str, g=None, by: str = "structure") -> str:
     return _hash_split(struct_key(g if g is not None else load_source_graph(sheet_id)))
 
 
-def plant_ids(limit=0):
-    manifest = json.loads((SYNTHETIC_DIR / "manifest.json").read_text(encoding="utf-8"))
+def plant_ids(limit=0, synthetic_dir=None):
+    root = synthetic_dir or SYNTHETIC_DIR
+    manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
     ids = [p["id"] for p in manifest["plants"]
-           if (SYNTHETIC_DIR / p["id"] / "graph" / "graph.json").is_file()
-           and (SYNTHETIC_DIR / p["id"] / "drawings" / "plant.png").is_file()]
+           if (root / p["id"] / "graph" / "graph.json").is_file()
+           and (root / p["id"] / "drawings" / "plant.png").is_file()]
     return ids[:limit] if limit else ids
 
 
@@ -148,11 +161,14 @@ def _place(src, dest):
     os.replace(tmp, dest)
 
 
-def write_sheet(pid, counts, split_by="structure"):
-    """Write one sheet into SHEETS_DIR; returns its split. Warnings are counted under keys starting with '!'."""
-    plant = SYNTHETIC_DIR / pid
+def write_sheet(pid, counts, split_by="structure", synthetic_dir=None, sheets_dir=None, graphs_dir=None):
+    """Write one sheet into sheets_dir; returns its split. Warnings are counted under keys starting with '!'."""
+    synthetic_dir = synthetic_dir or SYNTHETIC_DIR
+    sheets_dir = sheets_dir or SHEETS_DIR
+    graphs_dir = graphs_dir or GRAPHS_DIR
+    plant = synthetic_dir / pid
     svg, png = plant / "drawings" / "plant.svg", plant / "drawings" / "plant.png"
-    g = load_source_graph(pid)
+    g = load_source_graph(pid, synthetic_dir)
     check_types(n["type"] for n in g["nodes"])
     im = g["image"]
     s = im["png_scale"]
@@ -216,11 +232,11 @@ def write_sheet(pid, counts, split_by="structure"):
     split = split_for(pid, g, split_by)
     for other in SPLITS:
         if other != split:
-            (SHEETS_DIR / "images" / other / f"{pid}.png").unlink(missing_ok=True)
-            (SHEETS_DIR / "labels" / other / f"{pid}.txt").unlink(missing_ok=True)
-    _place(png, SHEETS_DIR / "images" / split / f"{pid}.png")
-    _place("\n".join(labelled) + "\n", SHEETS_DIR / "labels" / split / f"{pid}.txt")
-    (GRAPHS_DIR / f"{pid}.json").write_text(json.dumps(g), encoding="utf-8")
+            (sheets_dir / "images" / other / f"{pid}.png").unlink(missing_ok=True)
+            (sheets_dir / "labels" / other / f"{pid}.txt").unlink(missing_ok=True)
+    _place(png, sheets_dir / "images" / split / f"{pid}.png")
+    _place("\n".join(labelled) + "\n", sheets_dir / "labels" / split / f"{pid}.txt")
+    (graphs_dir / f"{pid}.json").write_text(json.dumps(g), encoding="utf-8")
     return split
 
 
@@ -269,26 +285,32 @@ def main():
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--refresh", action="store_true")
     ap.add_argument("--split-by", choices=SPLIT_BY, default="structure")
+    ap.add_argument("--mock", action="store_true", help="Synthetic Data/Mock -> Data/Mock/sld-sheets-v3")
     args = ap.parse_args()
 
-    if args.refresh and SHEETS_DIR.exists():
-        shutil.rmtree(SHEETS_DIR)
-    check_classes_file(SHEETS_DIR)
-    for split in SPLITS:
-        (SHEETS_DIR / "images" / split).mkdir(parents=True, exist_ok=True)
-        (SHEETS_DIR / "labels" / split).mkdir(parents=True, exist_ok=True)
-    GRAPHS_DIR.mkdir(parents=True, exist_ok=True)
+    synthetic_dir = SYNTHETIC_DIR / "Mock" if args.mock else SYNTHETIC_DIR
+    sheets_dir = DATA_ROOT / "Mock" / "sld-sheets-v3" if args.mock else SHEETS_DIR
+    graphs_dir = sheets_dir / "graphs"
+    data_yaml = sheets_dir / "data.yaml"
 
-    ids = plant_ids(args.limit)
+    if args.refresh and sheets_dir.exists():
+        shutil.rmtree(sheets_dir)
+    check_classes_file(sheets_dir)
+    for split in SPLITS:
+        (sheets_dir / "images" / split).mkdir(parents=True, exist_ok=True)
+        (sheets_dir / "labels" / split).mkdir(parents=True, exist_ok=True)
+    graphs_dir.mkdir(parents=True, exist_ok=True)
+
+    ids = plant_ids(args.limit, synthetic_dir)
     counts, table = Counter(), {}
     for pid in ids:
-        table[pid] = write_sheet(pid, counts, args.split_by)
+        table[pid] = write_sheet(pid, counts, args.split_by, synthetic_dir, sheets_dir, graphs_dir)
 
-    check_consistency(SHEETS_DIR, table)
-    write_meta(SHEETS_DIR, table, args.split_by, DATA_YAML)
+    check_consistency(sheets_dir, table)
+    write_meta(sheets_dir, table, args.split_by, data_yaml)
     print(f"{len(ids)} sheets -> {dict(Counter(table.values()))} (split by {args.split_by})")
     print(f"{len(CLASSES)} classes; boxes per class: {report(counts)}")
-    print(SHEETS_DIR)
+    print(sheets_dir)
 
 
 if __name__ == "__main__":

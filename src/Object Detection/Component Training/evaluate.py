@@ -8,7 +8,7 @@ from sklearn.metrics import ConfusionMatrixDisplay, classification_report
 
 from model import RandomHalfTurn  # importing model registers the custom layers for load_model
 from config import MODEL_DIR, OUTPUT_DIR, PRINTED_TEST_DATA_DIR, SEED, TEST_DATA_DIR, TTA_PASSES
-from data import load_datasets, load_external_test_dataset, load_test_dataset, read_manifest, classifier_classes
+from data import load_arrays, load_external_test_dataset, load_test_dataset, make_dataset, read_manifest, classifier_classes
 
 
 def _tta_layers(model):
@@ -83,7 +83,8 @@ def main():
     n_out = model.output_shape[-1]
     assert len(class_names) == n_out, f"{len(class_names)} class names but the model has {n_out} outputs"
 
-    _, val_ds, class_names, _ = load_datasets(class_names=class_names)
+    _, (val_paths, val_labels), class_names = load_arrays(class_names)
+    val_ds = make_dataset(val_paths, val_labels, len(class_names), training=False)
     eval_ds = val_ds
     split_tag = "val"
     external = {

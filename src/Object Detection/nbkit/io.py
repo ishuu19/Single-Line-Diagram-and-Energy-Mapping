@@ -19,6 +19,12 @@ def ok(condition, message):
     print(f"ok  {message}")
 
 
+def warn(condition, message):
+    """Soft check for quality thresholds: prints a tick or a WARNING and goes on (a weak model must not stop the run)."""
+    print(("ok  " if condition else "WARNING (not stopping)  ") + message)
+    return bool(condition)
+
+
 def sh(*cmd, cwd=None, check=True):
     """Run a command, return its combined output. check=True raises on a non-zero exit code, with the output in the message."""
     r = subprocess.run(cmd, cwd=cwd, text=True, capture_output=True)

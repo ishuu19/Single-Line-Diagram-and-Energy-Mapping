@@ -117,20 +117,16 @@ def _scan_line(lab, line_index, axis, solid_set, uf, gap_pixels):
     ends = [e for e in edges if ink[e]]
     if ink[-1]:
         ends.append(len(line) - 1)
-    segs = [(s, e, int(line[s])) for s, e in zip(starts, ends) if int(line[s]) in solid_set]
     segs_all = [(s, e, int(line[s])) for s, e in zip(starts, ends)]
+    segs = [(j, *seg) for j, seg in enumerate(segs_all) if seg[2] in solid_set]
 
     def pos(r, c):
         return (r, c) if axis == 1 else (c, r)
 
-    k = 0
-    for s0, e0, a in segs:
+    for j, s0, e0, a in segs:
         if _is_perpendicular(lab, a, *pos(line_index, e0), axis):
             continue
         # walk following segments (any blob) until the gap budget is spent
-        j = next((idx for idx, seg in enumerate(segs_all) if seg[0] == s0), None)
-        if j is None:
-            continue
         for s1, e1, b in segs_all[j + 1:]:
             if s1 - e0 - 1 > GAP_MAX_PX:
                 break
