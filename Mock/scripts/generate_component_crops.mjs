@@ -11,6 +11,7 @@ import {
   walkSvgsSync, slug,
 } from './lib/crop_io.mjs';
 import { pngFromSvg } from './lib/png.mjs';
+import { isLikelySymbolSheet, cropsFromSymbolSheet } from './lib/sheet_crop.mjs';
 
 const TP = join(REPO, 'Mock', 'third_party');
 const WIDTHS = [96, 112, 128, 144, 160];
@@ -30,13 +31,29 @@ async function fromSvgFile(source, svgPath, meta) {
   const rel = relative(join(TP, source), svgPath).replace(/\\/g, '/');
   const svg = readFileSync(svgPath, 'utf8');
   if (!svg.includes('<svg')) return;
-  for (const w of scales) {
-    const outPath = cropOutPath(source, [slug(dirnameLeaf(rel))], `${base}-w${w}`);
-    try {
-      await writeCropFromSvg(svg, outPath, log, { source, ...meta, file: rel, variant: `w${w}` }, w);
-      n++;
-    } catch (e) {
-      process.stderr.write(`skip ${rel} w${w}: ${e.message}\n`);
+
+  const targets = isLikelySymbolSheet(svgPath, svg)
+    ? (await cropsFromSymbolSheet(svg, `${source}-${base}`)).map((c) => ({
+      svg: c.svg,
+      suffix: c.cellId,
+    }))
+    : [{ svg, suffix: base }];
+
+  if (targets.length > 1) {
+    process.stdout.write(`sheet crop ${rel} -> ${targets.length}\n`);
+  }
+
+  for (const t of targets) {
+    for (const w of scales) {
+      const outPath = cropOutPath(source, [slug(dirnameLeaf(rel))], `${slug(t.suffix)}-w${w}`);
+      try {
+        await writeCropFromSvg(t.svg, outPath, log, {
+          source, ...meta, file: rel, variant: `w${w}`, from_sheet: targets.length > 1,
+        }, w);
+        n++;
+      } catch (e) {
+        process.stderr.write(`skip ${rel} w${w}: ${e.message}\n`);
+      }
     }
   }
 }

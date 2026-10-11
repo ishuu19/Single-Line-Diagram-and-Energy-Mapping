@@ -8,7 +8,8 @@ Supplementary data built **outside** `Synthetic Data/_tools/`.
 |------|----------|
 | `Mock/scripts/` | Generators |
 | `Mock/third_party/corpus/` | Full sheets (`MOCK-ST`, `MOCK-SLE`, `MOCK-MIX`, `GEN-MOCK-*`) + `manifest.json` |
-| `Mock/third_party/corpus/component-crops/` | **Isolated symbol PNGs** (sldeditor IEC/ANSI, Acheron, electronic-symbols, tscircuit, …) + `manifest.jsonl` |
+| `Mock/third_party/corpus/component-crops/` | Isolated symbol PNGs + `manifest.jsonl` |
+| `Mock/third_party/corpus/component-svgs/` | **Labeled SVG** tiles `{train,val,test}/*.svg` + `manifest.jsonl` + `split.json` |
 | `Mock/third_party/*` | Cloned symbol repos (`npm run setup`) |
 
 Legacy path `Synthetic Data/Mock/` is retired after migration (stub README only).
@@ -24,6 +25,7 @@ npm run setup
 node scripts/migrate_to_third_party.mjs --prune-collages   # once, if upgrading
 npm run setup
 node scripts/generate_component_crops.mjs --per 3
+node scripts/generate_component_svgs.mjs   # splits multi-symbol Inkscape/Acheron sheets into per-cell crops
 node scripts/generate_mixed_sheets.mjs --count 120
 node scripts/generate_sldeditor.mjs --count 100
 node scripts/generate_all.mjs --count 100
