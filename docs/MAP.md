@@ -21,5 +21,6 @@ Open the row for the task. Do not explore siblings.
 | Full-sheet detection + wire tracing → graph | `src/Object Detection/SLD Training/README.md`, then `wires.py`. Notebooks: `notebooks/kaggle-sld-stage-b.ipynb` (stage B only), `notebooks/kaggle-sld-pipeline.ipynb` (both stages), `notebooks/kaggle-sld-pipeline-v3.ipynb` (both stages on v3 crops + sheets-v2; code in `src/Object Detection/nbkit/`, Stage B AUG kept). Never edit `Results/*.ipynb` |
 | Run a notebook on Kaggle GPU from this PC (Kaggle API) | `src/kaggle_runner/README.md`, `run.py`, `jobs.json` |
 | Real evaluation sheets | `Data/Electric Sample Data/drawings/plant.pdf` and `Data/Electric Sample Data/data/` |
+| External mock SLD corpus (not `_tools/`) | `Mock/README.md` → `Mock/third_party/corpus/`; crops in `component-crops/`; pack with `build_sld_dataset.py --mock` |
 
 `manifest.json` under `Synthetic Data/` is the corpus index. Prefer it over listing plant folders.

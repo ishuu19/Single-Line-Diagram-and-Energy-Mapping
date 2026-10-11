@@ -1,0 +1,23 @@
+{
+  "name": "fyp-mock-sld",
+  "private": true,
+  "type": "module",
+  "description": "External-tool mock SLD corpus (not Synthetic Data/_tools)",
+  "scripts": {
+    "setup": "node scripts/setup_third_party.mjs",
+    "generate": "node scripts/generate_all.mjs",
+    "collage": "node scripts/generate_sldeditor_collage.mjs",
+    "sldeditor": "node scripts/generate_sldeditor.mjs",
+    "esl": "node scripts/generate_esl_collage.mjs",
+    "migrate": "node scripts/migrate_to_third_party.mjs --prune-collages",
+    "crops": "node scripts/generate_component_crops.mjs --per 8",
+    "mixed": "node scripts/generate_mixed_sheets.mjs --count 120",
+    "generate:all": "node scripts/generate_mixed_sheets.mjs --count 120 && node scripts/generate_sldeditor.mjs --count 100 && node scripts/generate_all.mjs --count 100 && node scripts/generate_component_crops.mjs --per 8"
+  },
+  "dependencies": {
+    "@resvg/resvg-js": "^2.6.2",
+    "schematex": "1.1.0",
+    "sharp": "^0.33.5",
+    "sldeditor": "^0.24.0"
+  }
+}

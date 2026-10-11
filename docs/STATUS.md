@@ -1,10 +1,12 @@
 # Status
 
-Updated: 2026-10-12 (code review fixes in docs/CODE_REVIEW.md; datasets rebuilt 2026-10-04; retrain pending)
+Updated: 2026-10-12 (Mock external corpus expanded; code review in docs/CODE_REVIEW.md; datasets rebuilt 2026-10-04; retrain pending)
 
 ## Now
 
 Synthetic corpus exists and is the development set. Real sheets are the untouched test set. Object-detection work has started: isolated symbol crops, not a trained model.
+
+**Mock supplement (`Mock/third_party/corpus/`):** external full sheets (`MOCK-ST`, `MOCK-SLE`, `MOCK-MIX`, `GEN-MOCK-*`); **component crops** under `component-crops/` (Schematex, sldeditor, CC0 ESL). Collage sheets (`MOCK-COL`/`MOCK-ESL`) deprecated for training. PNGs are flattened RGB. Rebuild YOLO pack: `build_sld_dataset.py --mock`.
 
 ## Done
 

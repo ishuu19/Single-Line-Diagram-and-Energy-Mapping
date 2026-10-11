@@ -4,7 +4,7 @@ Build the full-sheet YOLO dataset from the synthetic corpus.
   python build_sld_dataset.py                 # all plants in Synthetic Data/manifest.json
   python build_sld_dataset.py --limit 50      # quick smoke run
   python build_sld_dataset.py --refresh       # wipe Data/sld-sheets-v3 first
-  python build_sld_dataset.py --mock          # Synthetic Data/Mock -> Data/Mock/sld-sheets-v3
+  python build_sld_dataset.py --mock          # Mock/third_party/corpus -> Data/Mock/sld-sheets-v3
   python build_sld_dataset.py --split-by id   # old per-sheet-id hash split (default: structure)
 
 Output: Data/sld-sheets-v3/
@@ -91,12 +91,22 @@ def split_for(sheet_id: str, g=None, by: str = "structure") -> str:
     return _hash_split(struct_key(g if g is not None else load_source_graph(sheet_id)))
 
 
+_COLLAGE_ID = re.compile(r"^MOCK-(COL|ESL)-")
+
+
 def plant_ids(limit=0, synthetic_dir=None):
     root = synthetic_dir or SYNTHETIC_DIR
     manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
-    ids = [p["id"] for p in manifest["plants"]
-           if (root / p["id"] / "graph" / "graph.json").is_file()
-           and (root / p["id"] / "drawings" / "plant.png").is_file()]
+    ids = []
+    for p in manifest["plants"]:
+        pid = p["id"]
+        if p.get("kind") == "collage" or _COLLAGE_ID.match(pid):
+            continue
+        if not (root / pid / "graph" / "graph.json").is_file():
+            continue
+        if not (root / pid / "drawings" / "plant.png").is_file():
+            continue
+        ids.append(pid)
     return ids[:limit] if limit else ids
 
 
@@ -285,10 +295,12 @@ def main():
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--refresh", action="store_true")
     ap.add_argument("--split-by", choices=SPLIT_BY, default="structure")
-    ap.add_argument("--mock", action="store_true", help="Synthetic Data/Mock -> Data/Mock/sld-sheets-v3")
+    ap.add_argument("--mock", action="store_true", help="Mock/third_party/corpus -> Data/Mock/sld-sheets-v3")
     args = ap.parse_args()
 
-    synthetic_dir = SYNTHETIC_DIR / "Mock" if args.mock else SYNTHETIC_DIR
+    repo_root = Path(__file__).resolve().parents[3]
+    mock_corpus = repo_root / "Mock" / "third_party" / "corpus"
+    synthetic_dir = mock_corpus if args.mock else SYNTHETIC_DIR
     sheets_dir = DATA_ROOT / "Mock" / "sld-sheets-v3" if args.mock else SHEETS_DIR
     graphs_dir = sheets_dir / "graphs"
     data_yaml = sheets_dir / "data.yaml"
