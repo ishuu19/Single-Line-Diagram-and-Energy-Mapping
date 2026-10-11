@@ -46,3 +46,4 @@ One line per change. Newest at the bottom. Do not copy transcripts here.
 - 2026-10-12 — Mock corpus: added `Mock/scripts` for sldeditor (`MOCK-SLE`), basverdoes CC0 collages (`MOCK-ESL`), more Schematex npm sheets/collages; output under `Synthetic Data/Mock/`.
 - 2026-10-12 — Mock relocated to `Mock/third_party/corpus/`; component-only crops script; `MOCK-MIX` mixed-type full sheets; RGB PNG export; collage sheets dropped from `--mock` YOLO pack.
 - 2026-10-12 — Component crops: multi-source setup (Acheron, electronic-symbols, tscircuit, SchematicSymbolsSVG, Inkscape_electric_Symbols, schemalib, circuit-symbol-svg); sldeditor all kinds IEC+ANSI; Schematex/ESL removed from crop generator.
+- 2026-10-12 — `kaggle-sld-pipeline-v3.ipynb`: Drive is mounted but never read for datasets; models are versioned on Drive (`sld_models/version N`, next free number after a Part A run, else latest loaded); Part B restores/saves in the same version. Untested on Colab.
